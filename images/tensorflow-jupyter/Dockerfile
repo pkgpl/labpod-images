@@ -1,7 +1,7 @@
 # LabPod TensorFlow + JupyterLab composite image (public, pull-only).
 #
 # Built and pushed to ghcr.io/labpod/tensorflow-jupyter:<cuda-tag> by
-# .github/workflows/build-tensorflow-images.yml. Replaces the upstream
+# .github/workflows/images.yml. Replaces the upstream
 # jovyan-based quay.io/jupyter/tensorflow-notebook for LabPod's default
 # "TensorFlow JupyterLab" template: no baked USER (runs as the workspace
 # owner under rootless Podman), no /home/jovyan remnants, WORKDIR /work.
@@ -129,6 +129,14 @@ RUN arch="$(dpkg --print-architecture)" \
 # existing image entry wins over Podman's injection and redirects HOME. Leave
 # UID 1000 unassigned in every published LabPod image.
 RUN sed -i -E '/^[^:]*:[^:]*:1000:/d' /etc/passwd
+
+# CPU execution catches broken TensorFlow installs on pull requests. Real-GPU
+# cuDNN compatibility remains a hardware acceptance gate.
+RUN CUDA_VISIBLE_DEVICES=-1 PYTHONDONTWRITEBYTECODE=1 python3 -c \
+      'import tensorflow as tf; x=tf.ones((1, 4, 4, 1)); y=tf.keras.layers.Conv2D(1, 2)(x); assert tuple(y.shape) == (1, 3, 3, 1)' \
+    && jupyter lab --version \
+    && tensorboard --version \
+    && code-server --version
 
 WORKDIR /work
 EXPOSE 8888 6006 8080

@@ -2,11 +2,11 @@ name: bump-image-pins
 
 # Bumps the version pins embedded in the image build matrices (torch/
 # torchvision, TensorFlow, code-server) that Dependabot can't see, and opens a
-# review PR. The PR's path-filtered image builds run validate-only (no publish),
-# so a bad wheel/version combination is caught before merge.
+# review PR. The PR image matrix runs validate-only (no publish), so a bad
+# wheel/version combination is caught before merge.
 #
 # One-time owner setup — a scoped Personal Access Token:
-#   The torch/TensorFlow pins live in .github/workflows/build-*-images.yml, and
+#   The torch/TensorFlow pins live in .github/workflows/images.yml, and
 #   GitHub forbids the default GITHUB_TOKEN from pushing changes to any file
 #   under .github/workflows/** (the `workflows` permission is not grantable to
 #   GITHUB_TOKEN). So this job pushes its branch with a fine-grained PAT that has
@@ -63,10 +63,11 @@ jobs:
 
             ${{ steps.bump.outputs.summary }}
 
-            **Review before merge.** The path-filtered image builds on this PR
-            run validate-only (no publish) — confirm they pass, and sanity-check
+            **Review before merge.** The complete image matrix on this PR runs
+            validate-only (no publish) — confirm it passes, and sanity-check
             the torch/torchvision pairing, before merging. Merging to `main`
-            republishes the affected `ghcr.io/labpod/*` tags.
+            publishes candidates and promotes stable tags only after every
+            candidate passes.
 
             Opened by the `bump-image-pins` workflow.
           labels: automated, images

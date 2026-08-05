@@ -1,7 +1,7 @@
 # LabPod PyTorch Demo composite image (public, pull-only).
 #
 # Built and pushed to ghcr.io/labpod/pytorch-demo:<tag> by
-# .github/workflows/build-pytorch-demo-images.yml. Backs LabPod's
+# .github/workflows/images.yml. Backs LabPod's
 # "PyTorch Demo Workspace" template: a kitchen-sink showcase with
 # JupyterLab, TensorBoard, code-server, ttyd terminal, MLflow, and Aim.
 # No baked USER (runs as the workspace owner under rootless Podman),
@@ -100,6 +100,16 @@ RUN arch="$(dpkg --print-architecture)" \
 # existing image entry wins over Podman's injection and redirects HOME. Leave
 # UID 1000 unassigned in every published LabPod image.
 RUN sed -i -E '/^[^:]*:[^:]*:1000:/d' /etc/passwd
+
+# Build-time contract checks run for every CPU/CUDA matrix entry. Published
+# image smoke tests additionally probe JupyterLab, TensorBoard, code-server,
+# and ttyd over HTTP.
+RUN PYTHONDONTWRITEBYTECODE=1 python3 -c \
+      'import aim, mlflow, torch, torchvision; x=torch.tensor([1.0, 2.0]); assert torch.dot(x, x).item() == 5.0' \
+    && jupyter lab --version \
+    && tensorboard --version \
+    && code-server --version \
+    && ttyd --version
 
 WORKDIR /work
 EXPOSE 8888 6006 8080 7681 5000 43800

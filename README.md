@@ -35,9 +35,21 @@ README for its supported matrix.
 ## Building and publishing
 
 Each image lives under `images/<name>` with its own Dockerfile and compatibility
-notes. Pull requests build affected images without publishing them. Changes on
-`main` and weekly scheduled builds publish the affected Linux `amd64` tags to
-`ghcr.io/labpod/*`.
+notes. Pull requests build the complete Linux `amd64` matrix without publishing
+it; the Dockerfiles run import and command checks as part of those builds.
+
+Changes on `main` and the weekly schedule first publish commit-specific
+`candidate-<sha>-<tag>` tags. CI then pulls every candidate anonymously, checks
+the runtime image contract, exercises the installed Python stack, and probes
+the JupyterLab, TensorBoard, code-server, and ttyd HTTP launchers that apply to
+that image. Stable tags are promoted only after the complete candidate matrix
+passes. CI pulls and smokes every promoted stable tag again without registry
+credentials.
+
+Candidate tags are retained as an audit trail for the bytes promoted by a
+given source commit. CUDA execution and driver/GPU-architecture compatibility
+still require a real NVIDIA host; hosted CI validates CPU execution and the
+packaged CUDA/Python dependency graph, not a real GPU kernel.
 
 The package namespace and pull URLs did not change when image source moved to
 this repository. Existing LabPod installations continue to use the same
@@ -47,7 +59,7 @@ Maintainers must grant this repository Actions access to each existing GHCR
 package, connect each package to this source repository, and keep package
 visibility **Public** so LabPod hosts can pull without registry credentials.
 
-Version pins embedded in build matrices are handled by the `bump-image-pins`
+Version pins embedded in the build matrix are handled by the `bump-image-pins`
 workflow. It is optional and no-ops unless the repository secret
 `BUMP_PIN_TOKEN` has contents, pull-request, and workflow write access to this
 repository. Dependabot continues to maintain action and base-image pins without

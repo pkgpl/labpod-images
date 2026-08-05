@@ -9,10 +9,9 @@ image builds validate (no publish), so a bad wheel/version combination is caught
 before merge.
 
 Handled pins:
-  - torch / torchvision   -> build-pytorch-images.yml, build-pytorch-demo-images.yml
-                             (only the newest shared pin; the cu121 old-driver
-                             line stays put)
-  - tensorflow            -> build-tensorflow-images.yml (tf_version)
+  - torch / torchvision   -> images.yml (only the newest shared pin; the cu121
+                             old-driver line stays put)
+  - tensorflow            -> images.yml (tf_version)
   - code-server           -> every Dockerfile in CODE_SERVER_DOCKERFILES
                              (version + amd64/arm64 sha256). The pin is
                              duplicated per image because the Dockerfiles share
@@ -33,8 +32,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 WF = ROOT / ".github" / "workflows"
-PYTORCH_WFS = [WF / "build-pytorch-images.yml", WF / "build-pytorch-demo-images.yml"]
-TF_WF = WF / "build-tensorflow-images.yml"
+IMAGE_WF = WF / "images.yml"
+PYTORCH_WFS = [IMAGE_WF]
+TF_WF = IMAGE_WF
 CODE_SERVER_DOCKERFILES = [
     ROOT / "images" / "pytorch-demo" / "Dockerfile",
     ROOT / "images" / "pytorch-jupyter" / "Dockerfile",
@@ -90,15 +90,22 @@ def newest_pinned(files, key):
     return max(found, key=version_key) if found else None
 
 
-def replace_in(files, old_line_key, old, new):
+def replace_in(files, old_line_key, old, new, root=ROOT):
     changed = []
     for f in files:
         txt = f.read_text()
         new_txt = re.sub(rf"(\b{re.escape(old_line_key)}:\s*){re.escape(old)}\b", rf"\g<1>{new}", txt)
         if new_txt != txt:
             f.write_text(new_txt)
-            changed.append(f.relative_to(ROOT).as_posix())
+            changed.append(f.relative_to(root).as_posix())
     return changed
+
+
+def update_code_server_dockerfile(text, version, sha_amd64, sha_arm64):
+    """Return Dockerfile text with one code-server pin set updated."""
+    text = re.sub(r"(CODE_SERVER_VERSION=)[0-9.]+", rf"\g<1>{version}", text)
+    text = re.sub(r"(CODE_SERVER_SHA256_AMD64=)[0-9a-f]{64}", rf"\g<1>{sha_amd64}", text)
+    return re.sub(r"(CODE_SERVER_SHA256_ARM64=)[0-9a-f]{64}", rf"\g<1>{sha_arm64}", text)
 
 
 def main():
@@ -144,9 +151,7 @@ def main():
             sha_arm64 = sha256_of(f"{base}/code-server_{new_cs}_arm64.deb")
             for path, cur_cs in stale:
                 df = path.read_text()
-                df = re.sub(r"(CODE_SERVER_VERSION=)[0-9.]+", rf"\g<1>{new_cs}", df)
-                df = re.sub(r"(CODE_SERVER_SHA256_AMD64=)[0-9a-f]{64}", rf"\g<1>{sha_amd64}", df)
-                df = re.sub(r"(CODE_SERVER_SHA256_ARM64=)[0-9a-f]{64}", rf"\g<1>{sha_arm64}", df)
+                df = update_code_server_dockerfile(df, new_cs, sha_amd64, sha_arm64)
                 path.write_text(df)
                 rel = path.relative_to(ROOT).as_posix()
                 changes.append(f"code-server {cur_cs} -> {new_cs} ({rel}, sha256 recomputed)")

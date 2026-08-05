@@ -70,4 +70,4 @@ podman build -t pytorch-jupyter:cu126 images/pytorch-jupyter
 
 To build another variant, provide `CUDA_BASE_IMAGE`, `TORCH_CUDA`,
 `TORCH_VERSION`, and `TORCHVISION_VERSION` from the matrix in
-`.github/workflows/build-pytorch-images.yml`.
+`.github/workflows/images.yml`.

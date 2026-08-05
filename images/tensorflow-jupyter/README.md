@@ -71,4 +71,4 @@ podman build -t tensorflow-jupyter:cu125 images/tensorflow-jupyter
 ```
 
 To build another variant, provide `CUDA_BASE_IMAGE` and `TF_VERSION` from the
-matrix in `.github/workflows/build-tensorflow-images.yml`.
+matrix in `.github/workflows/images.yml`.

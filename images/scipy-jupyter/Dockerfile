@@ -1,7 +1,7 @@
 # LabPod SciPy data-science + JupyterLab composite image (public, pull-only, CPU).
 #
 # Built and pushed to ghcr.io/labpod/scipy-jupyter:<tag> by
-# .github/workflows/build-scipy-images.yml. Replaces the upstream
+# .github/workflows/images.yml. Replaces the upstream
 # jovyan-based quay.io/jupyter/scipy-notebook for LabPod's default
 # "Data Science JupyterLab (CPU)" template: no baked USER (runs as the
 # workspace owner under rootless Podman), no /home/jovyan remnants,
@@ -62,6 +62,12 @@ RUN uv pip install --no-cache \
 # image entry wins over Podman's injection and redirects HOME. Leave UID 1000
 # unassigned in every published LabPod image.
 RUN sed -i -E '/^[^:]*:[^:]*:1000:/d' /etc/passwd
+
+# Build-time contract checks run on pull requests. Published-image smoke tests
+# additionally start JupyterLab and verify its HTTP endpoint.
+RUN PYTHONDONTWRITEBYTECODE=1 python3 -c \
+      'import bokeh, matplotlib, numpy, pandas, scipy, seaborn, sklearn; from scipy.linalg import solve; assert solve([[2.0]], [4.0])[0] == 2.0' \
+    && jupyter lab --version
 
 WORKDIR /work
 EXPOSE 8888

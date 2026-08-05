@@ -56,4 +56,4 @@ podman build -t pytorch-demo:cu126 \
 
 Provide `CUDA_BASE_IMAGE`, `TORCH_CUDA`, `TORCH_VERSION`, and
 `TORCHVISION_VERSION` from the matrix in
-`.github/workflows/build-pytorch-demo-images.yml`.
+`.github/workflows/images.yml`.

@@ -1,7 +1,7 @@
 # LabPod PyTorch + JupyterLab composite image (public, pull-only).
 #
 # Built and pushed to ghcr.io/labpod/pytorch-jupyter:<cuda-tag> by
-# .github/workflows/build-pytorch-images.yml. Replaces the upstream
+# .github/workflows/images.yml. Replaces the upstream
 # jovyan-based quay.io/jupyter/pytorch-notebook for LabPod's default
 # "PyTorch JupyterLab" template: no baked USER (runs as the workspace
 # owner under rootless Podman), no /home/jovyan remnants, WORKDIR /work.
@@ -97,6 +97,14 @@ RUN arch="$(dpkg --print-architecture)" \
 # existing image entry wins over Podman's injection and redirects HOME. Leave
 # UID 1000 unassigned in every published LabPod image.
 RUN sed -i -E '/^[^:]*:[^:]*:1000:/d' /etc/passwd
+
+# Build-time contract checks run on pull requests without requiring a GPU.
+# Published-image smoke tests additionally probe every launcher over HTTP.
+RUN PYTHONDONTWRITEBYTECODE=1 python3 -c \
+      'import torch, torchvision; x=torch.tensor([1.0, 2.0]); assert torch.dot(x, x).item() == 5.0' \
+    && jupyter lab --version \
+    && tensorboard --version \
+    && code-server --version
 
 WORKDIR /work
 EXPOSE 8888 6006 8080

@@ -45,4 +45,4 @@ podman build -t scipy-jupyter:py312 images/scipy-jupyter
 ```
 
 To build against another base, provide `BASE_IMAGE` from the matrix in
-`.github/workflows/build-scipy-images.yml`.
+`.github/workflows/images.yml`.
