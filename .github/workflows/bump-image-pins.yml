@@ -1,0 +1,72 @@
+name: bump-image-pins
+
+# Bumps the version pins embedded in the image build matrices (torch/
+# torchvision, TensorFlow, code-server) that Dependabot can't see, and opens a
+# review PR. The PR's path-filtered image builds run validate-only (no publish),
+# so a bad wheel/version combination is caught before merge.
+#
+# One-time owner setup — a scoped Personal Access Token:
+#   The torch/TensorFlow pins live in .github/workflows/build-*-images.yml, and
+#   GitHub forbids the default GITHUB_TOKEN from pushing changes to any file
+#   under .github/workflows/** (the `workflows` permission is not grantable to
+#   GITHUB_TOKEN). So this job pushes its branch with a fine-grained PAT that has
+#   contents:write + pull-requests:write + workflows:write on
+#   LabPod/labpod-images,
+#   stored as the repo secret BUMP_PIN_TOKEN. Without it the job no-ops with a
+#   warning (the base-image and action bumps still flow through Dependabot).
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '27 5 * * 1'
+
+concurrency:
+  group: bump-image-pins
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      HAS_TOKEN: ${{ secrets.BUMP_PIN_TOKEN != '' }}
+    steps:
+      - name: Check for bump token
+        if: env.HAS_TOKEN != 'true'
+        run: |
+          echo "::warning::BUMP_PIN_TOKEN is not set — skipping. Create a fine-grained PAT with contents+pull-requests+workflows write on LabPod/labpod-images and add it as the BUMP_PIN_TOKEN secret to enable auto-bump PRs. Dependabot still handles base images and actions."
+
+      - uses: actions/checkout@v7
+        if: env.HAS_TOKEN == 'true'
+        with:
+          token: ${{ secrets.BUMP_PIN_TOKEN }}
+
+      - name: Bump pins
+        id: bump
+        if: env.HAS_TOKEN == 'true'
+        run: python3 scripts/bump-image-pins.py
+
+      - name: Open pull request
+        if: env.HAS_TOKEN == 'true' && steps.bump.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ secrets.BUMP_PIN_TOKEN }}
+          branch: bump/image-pins
+          delete-branch: true
+          title: 'images: bump build-matrix version pins'
+          commit-message: 'images: bump build-matrix version pins'
+          body: |
+            Automated bump of the version pins embedded in the image build
+            matrices (torch/torchvision, TensorFlow, code-server).
+
+            ${{ steps.bump.outputs.summary }}
+
+            **Review before merge.** The path-filtered image builds on this PR
+            run validate-only (no publish) — confirm they pass, and sanity-check
+            the torch/torchvision pairing, before merging. Merging to `main`
+            republishes the affected `ghcr.io/labpod/*` tags.
+
+            Opened by the `bump-image-pins` workflow.
+          labels: automated, images

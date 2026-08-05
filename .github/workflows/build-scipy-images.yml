@@ -1,0 +1,72 @@
+name: build-scipy-images
+
+# Builds the LabPod SciPy data-science + JupyterLab composite image (CPU) and
+# pushes to ghcr.io/labpod/scipy-jupyter:<tag>.
+#
+# Auth: this repo lives in the LabPod org, so the workflow's own
+# GITHUB_TOKEN has packages:write for ghcr.io/labpod/* — no PAT needed.
+#
+# Existing GHCR package access and public-visibility setup are documented in
+# the repository README. LabPod's default pull allowlist already covers
+# ghcr.io/labpod.
+#
+# Rebuilds on: manual dispatch, image/workflow changes in pull requests
+# and on main, and a weekly schedule to pick up base-image / package
+# security updates. Pull-request builds validate only; they never publish
+# an image.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'images/scipy-jupyter/**'
+      - '.github/workflows/build-scipy-images.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'images/scipy-jupyter/**'
+      - '.github/workflows/build-scipy-images.yml'
+  schedule:
+    - cron: '57 4 * * 1'
+
+concurrency:
+  group: build-scipy-images
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - tag: py312
+            base: docker.io/ubuntu:24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build and optionally push
+        uses: docker/build-push-action@v7
+        with:
+          context: images/scipy-jupyter
+          file: images/scipy-jupyter/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          platforms: linux/amd64
+          provenance: false
+          tags: ghcr.io/labpod/scipy-jupyter:${{ matrix.tag }}
+          build-args: |
+            BASE_IMAGE=${{ matrix.base }}

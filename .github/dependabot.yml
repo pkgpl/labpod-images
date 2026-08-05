@@ -1,0 +1,39 @@
+version: 2
+
+# Dependabot keeps the mechanical pins current with review PRs:
+#   - github-actions: action versions across .github/workflows/*
+#   - docker: base-image tags in each images/*/Dockerfile FROM
+# The version pins that live in the build workflow matrices (torch/torchvision,
+# TensorFlow, code-server) are not visible to Dependabot; the scheduled
+# bump-image-pins workflow handles those.
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: ci
+    groups:
+      actions:
+        patterns:
+          - "*"
+
+  - package-ecosystem: docker
+    directories:
+      - /images/pytorch-jupyter
+      - /images/tensorflow-jupyter
+      - /images/scipy-jupyter
+      - /images/pytorch-demo
+      - /images/code-server
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: images
+    groups:
+      base-images:
+        patterns:
+          - "*"

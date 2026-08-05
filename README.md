@@ -9,11 +9,11 @@ user.
 
 | Image | Purpose | Example |
 |---|---|---|
-| `code-server` | Browser-based VS Code workspace | `ghcr.io/labpod/code-server:latest` |
-| `pytorch-jupyter` | PyTorch, JupyterLab, TensorBoard, and code-server | `ghcr.io/labpod/pytorch-jupyter:cu126` |
-| `tensorflow-jupyter` | TensorFlow, JupyterLab, TensorBoard, and code-server | `ghcr.io/labpod/tensorflow-jupyter:cu125` |
-| `scipy-jupyter` | CPU data-science and JupyterLab environment | `ghcr.io/labpod/scipy-jupyter:py312` |
-| `pytorch-demo` | LabPod demonstration workspace | `ghcr.io/labpod/pytorch-demo:cpu` |
+| [`code-server`](https://github.com/orgs/LabPod/packages/container/package/code-server) | Browser-based VS Code workspace | `ghcr.io/labpod/code-server:latest` |
+| [`pytorch-jupyter`](https://github.com/orgs/LabPod/packages/container/package/pytorch-jupyter) | PyTorch, JupyterLab, TensorBoard, and code-server | `ghcr.io/labpod/pytorch-jupyter:cu126` |
+| [`tensorflow-jupyter`](https://github.com/orgs/LabPod/packages/container/package/tensorflow-jupyter) | TensorFlow, JupyterLab, TensorBoard, and code-server | `ghcr.io/labpod/tensorflow-jupyter:cu125` |
+| [`scipy-jupyter`](https://github.com/orgs/LabPod/packages/container/package/scipy-jupyter) | CPU data-science and JupyterLab environment | `ghcr.io/labpod/scipy-jupyter:py312` |
+| [`pytorch-demo`](https://github.com/orgs/LabPod/packages/container/package/pytorch-demo) | LabPod demonstration workspace | `ghcr.io/labpod/pytorch-demo:cpu` |
 
 Pull an image with Podman, for example:
 
@@ -31,6 +31,27 @@ required.
 The host supplies the NVIDIA driver for GPU images. Select a CUDA channel that
 is compatible with both the host driver and GPU architecture; see each image's
 README for its supported matrix.
+
+## Building and publishing
+
+Each image lives under `images/<name>` with its own Dockerfile and compatibility
+notes. Pull requests build affected images without publishing them. Changes on
+`main` and weekly scheduled builds publish the affected Linux `amd64` tags to
+`ghcr.io/labpod/*`.
+
+The package namespace and pull URLs did not change when image source moved to
+this repository. Existing LabPod installations continue to use the same
+`ghcr.io/labpod/<image>:<tag>` references.
+
+Maintainers must grant this repository Actions access to each existing GHCR
+package, connect each package to this source repository, and keep package
+visibility **Public** so LabPod hosts can pull without registry credentials.
+
+Version pins embedded in build matrices are handled by the `bump-image-pins`
+workflow. It is optional and no-ops unless the repository secret
+`BUMP_PIN_TOKEN` has contents, pull-request, and workflow write access to this
+repository. Dependabot continues to maintain action and base-image pins without
+that secret.
 
 ## Relationship to LabPod
 
