@@ -82,12 +82,62 @@ jobs:
           printf 'FROM scratch\nLABEL ai.labpod.image.access-probe=true\n' | \
             docker buildx build --file - --tag "$PROBE_REF" --push -
 
-  validate:
-    name: validate (${{ matrix.name }}:${{ matrix.tag }})
+  validate_pr:
+    name: validate PR (${{ matrix.name }}:${{ matrix.tag }})
+    needs: changes
+    if: needs.changes.outputs.release_required == 'true' && github.event_name == 'pull_request'
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.changes.outputs.variant_matrix) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+
+      - name: Check release tag availability
+        env:
+          STABLE_REF: ${{ matrix.repository }}:${{ matrix.tag }}
+        run: |
+          if docker buildx imagetools inspect "$STABLE_REF" >/dev/null 2>&1; then
+            echo "::error::$STABLE_REF release tag already exists; advance the vN prefix" >&2
+            exit 1
+          fi
+
+      - name: Compute build-input digest
+        id: build_input
+        env:
+          BUILD_INPUT_ARGS: ${{ matrix.build_input_args }}
+        run: >-
+          python3 scripts/build-input-digest.py
+          --context "${{ matrix.context }}"
+          --dockerfile "${{ matrix.dockerfile }}"
+          --build-args "$BUILD_INPUT_ARGS"
+
+      - name: Build candidate
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: false
+          platforms: linux/amd64
+          provenance: mode=max
+          sbom: true
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            ai.labpod.image.build-input-digest=${{ steps.build_input.outputs.digest }}
+          tags: ${{ matrix.repository }}:candidate-${{ github.sha }}-${{ matrix.tag }}
+          build-args: ${{ matrix.build_args }}
+
+  validate_release:
+    name: validate release (${{ matrix.name }}:${{ matrix.tag }})
     needs: [changes, package-access]
     if: >-
       always() && needs.changes.outputs.release_required == 'true' &&
-      (github.event_name == 'pull_request' || needs.package-access.result == 'success')
+      github.event_name != 'pull_request' && needs.package-access.result == 'success'
     runs-on: ubuntu-22.04
     permissions:
       contents: read
@@ -99,7 +149,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Log in to GHCR
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
@@ -108,16 +157,6 @@ jobs:
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
-
-      - name: Check release tag availability
-        if: github.event_name == 'pull_request'
-        env:
-          STABLE_REF: ${{ matrix.repository }}:${{ matrix.tag }}
-        run: |
-          if docker buildx imagetools inspect "$STABLE_REF" >/dev/null 2>&1; then
-            echo "::error::$STABLE_REF release tag already exists; advance the vN prefix" >&2
-            exit 1
-          fi
 
       - name: Select candidate reference
         id: refs
@@ -154,7 +193,7 @@ jobs:
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
-          push: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+          push: true
           platforms: linux/amd64
           provenance: mode=max
           sbom: true
@@ -165,7 +204,6 @@ jobs:
           build-args: ${{ matrix.build_args }}
 
       - name: Smoke candidate through anonymous pull
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         env:
           CANDIDATE_REF: ${{ steps.refs.outputs.candidate_ref }}
           EXPECTED_DIGEST: ${{ steps.build.outputs.digest }}
@@ -182,8 +220,8 @@ jobs:
 
   promote:
     name: promote (${{ matrix.name }}:${{ matrix.tag }})
-    needs: [changes, validate]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.validate.result == 'success'
+    needs: [changes, validate_release]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.validate_release.result == 'success'
     runs-on: ubuntu-22.04
     permissions:
       contents: read
@@ -233,13 +271,15 @@ jobs:
   gate:
     name: release gate
     if: always()
-    needs: [changes, package-access, validate, promote]
+    needs: [changes, package-access, validate_pr, validate_release, promote]
     runs-on: ubuntu-22.04
     env:
       RELEASE_REQUIRED: ${{ needs.changes.outputs.release_required }}
       PACKAGE_ACCESS_RESULT: ${{ needs.package-access.result }}
-      VALIDATE_RESULT: ${{ needs.validate.result }}
+      VALIDATE_PR_RESULT: ${{ needs.validate_pr.result }}
+      VALIDATE_RELEASE_RESULT: ${{ needs.validate_release.result }}
       PROMOTE_RESULT: ${{ needs.promote.result }}
+      IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
       SHOULD_BUILD_REMOTE: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
       SHOULD_PROMOTE: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
     steps:
@@ -247,14 +287,23 @@ jobs:
         run: |
           set -euo pipefail
           if [[ "$RELEASE_REQUIRED" != true ]]; then
-            [[ "$VALIDATE_RESULT" == skipped && "$PROMOTE_RESULT" == skipped ]]
+            [[ "$VALIDATE_PR_RESULT" == skipped ]]
+            [[ "$VALIDATE_RELEASE_RESULT" == skipped ]]
+            [[ "$PROMOTE_RESULT" == skipped ]]
             exit 0
           fi
-          [[ "$VALIDATE_RESULT" == success ]]
-          if [[ "$SHOULD_BUILD_REMOTE" == true ]]; then
+          if [[ "$IS_PULL_REQUEST" == true ]]; then
+            [[ "$PACKAGE_ACCESS_RESULT" == skipped ]]
+            [[ "$VALIDATE_PR_RESULT" == success ]]
+            [[ "$VALIDATE_RELEASE_RESULT" == skipped ]]
+          elif [[ "$SHOULD_BUILD_REMOTE" == true ]]; then
             [[ "$PACKAGE_ACCESS_RESULT" == success ]]
+            [[ "$VALIDATE_PR_RESULT" == skipped ]]
+            [[ "$VALIDATE_RELEASE_RESULT" == success ]]
           else
             [[ "$PACKAGE_ACCESS_RESULT" == skipped ]]
+            [[ "$VALIDATE_PR_RESULT" == skipped ]]
+            [[ "$VALIDATE_RELEASE_RESULT" == skipped ]]
           fi
           if [[ "$SHOULD_PROMOTE" == true ]]; then
             [[ "$PROMOTE_RESULT" == success ]]

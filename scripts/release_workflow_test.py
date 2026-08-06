@@ -67,7 +67,7 @@ class ReleaseWorkflowTest(unittest.TestCase):
             self.workflow.count(
                 "fromJSON(needs.changes.outputs.variant_matrix)"
             ),
-            2,
+            3,
         )
         self.assertIn(
             "fromJSON(needs.changes.outputs.package_matrix)", self.workflow
@@ -84,8 +84,8 @@ class ReleaseWorkflowTest(unittest.TestCase):
             self.assertFalse((WORKFLOW.parent / old_name).exists(), old_name)
 
     def test_promotion_waits_for_complete_validation(self):
-        self.assertIn("needs: [changes, validate]", self.promote_section)
-        self.assertIn("needs.validate.result == 'success'", self.promote_section)
+        self.assertIn("needs: [changes, validate_release]", self.promote_section)
+        self.assertIn("needs.validate_release.result == 'success'", self.promote_section)
         self.assertIn("docker buildx imagetools create --tag", self.promote_section)
         self.assertIn("stable_digest", self.promote_section)
         self.assertIn("candidate_digest", self.promote_section)
@@ -124,7 +124,8 @@ class ReleaseWorkflowTest(unittest.TestCase):
     def test_release_gate_always_reports(self):
         self.assertRegex(self.workflow, r"\n  gate:\n(?:.*\n)*?    if: always\(\)")
         self.assertIn("name: release gate", self.workflow)
-        self.assertIn('[[ "$VALIDATE_RESULT" == success ]]', self.workflow)
+        self.assertIn('[[ "$VALIDATE_PR_RESULT" == success ]]', self.workflow)
+        self.assertIn('[[ "$VALIDATE_RELEASE_RESULT" == success ]]', self.workflow)
         self.assertIn('[[ "$PROMOTE_RESULT" == success ]]', self.workflow)
 
     def test_images_are_linked_to_the_source_repository(self):

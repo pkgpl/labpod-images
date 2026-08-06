@@ -32,6 +32,24 @@ class WorkflowSecurityTest(unittest.TestCase):
             + "\n".join(unpinned),
         )
 
+    def test_pull_request_image_builds_cannot_write_packages(self):
+        workflow = (WORKFLOWS / "images.yml").read_text()
+        self.assertIn("\n  validate_pr:\n", workflow)
+        self.assertIn("\n  validate_release:\n", workflow)
+        pr_job = workflow.split("\n  validate_pr:\n", 1)[1].split(
+            "\n  validate_release:\n", 1
+        )[0]
+        release_job = workflow.split("\n  validate_release:\n", 1)[1].split(
+            "\n  promote:\n", 1
+        )[0]
+
+        self.assertIn("github.event_name == 'pull_request'", pr_job)
+        self.assertNotIn("packages: write", pr_job)
+        self.assertNotIn("docker/login-action", pr_job)
+        self.assertIn("push: false", pr_job)
+        self.assertIn("packages: write", release_job)
+        self.assertIn("docker/login-action", release_job)
+
 
 if __name__ == "__main__":
     unittest.main()
