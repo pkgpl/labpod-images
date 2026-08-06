@@ -9,9 +9,10 @@ image builds validate (no publish), so a bad wheel/version combination is caught
 before merge.
 
 Handled pins:
-  - torch / torchvision   -> image-matrix.json (only the newest shared pin;
+  - torch / torchvision / torchaudio -> image-matrix.json (newest shared pin;
                              the cu121 old-driver line stays put)
   - tensorflow            -> image-matrix.json (tf_version)
+  - ComfyUI               -> image-matrix.json (release tag)
   - code-server           -> every Dockerfile in CODE_SERVER_DOCKERFILES
                              (version + amd64/arm64 sha256). The pin is
                              duplicated per image because the Dockerfiles share
@@ -39,6 +40,9 @@ CODE_SERVER_DOCKERFILES = [
     ROOT / "images" / "pytorch-jupyter" / "Dockerfile",
     ROOT / "images" / "tensorflow-jupyter" / "Dockerfile",
     ROOT / "images" / "code-server" / "Dockerfile",
+    ROOT / "images" / "llm-huggingface" / "Dockerfile",
+    ROOT / "images" / "cuda-composite" / "Dockerfile",
+    ROOT / "images" / "parallel-dev" / "Dockerfile",
 ]
 
 _STABLE_RE = re.compile(r"^\d+(\.\d+)*$")
@@ -67,6 +71,11 @@ def latest_stable_pypi(pkg):
 def latest_code_server():
     data = json.loads(get("https://api.github.com/repos/coder/code-server/releases/latest"))
     return data["tag_name"].lstrip("v")
+
+
+def latest_github_release(repository):
+    data = json.loads(get(f"https://api.github.com/repos/{repository}/releases/latest"))
+    return data["tag_name"]
 
 
 def sha256_of(url):
@@ -111,14 +120,31 @@ def update_code_server_dockerfile(text, version, sha_amd64, sha_arm64):
     return re.sub(r"(CODE_SERVER_SHA256_ARM64=)[0-9a-f]{64}", rf"\g<1>{sha_arm64}", text)
 
 
+def advance_release_tags(text):
+    """Advance the shared immutable vN prefix while preserving channels."""
+    versions = {int(value) for value in re.findall(r'"tag"\s*:\s*"v(\d+)(?:-[^"]+)?"', text)}
+    if len(versions) != 1:
+        raise ValueError("release catalog must use one shared vN tag prefix")
+    old_version = versions.pop()
+    new_version = old_version + 1
+    updated = re.sub(
+        rf'("tag"\s*:\s*")v{old_version}((?:-[^"]+)?")',
+        rf"\g<1>v{new_version}\g<2>",
+        text,
+    )
+    return updated, old_version, new_version
+
+
 def main():
     changes = []
 
     # torch / torchvision (newest shared pin only; cu121 stays put).
     cur_torch = newest_pinned(PYTORCH_WFS, "torch")
     cur_tv = newest_pinned(PYTORCH_WFS, "torchvision")
+    cur_audio = newest_pinned(PYTORCH_WFS, "torchaudio")
     new_torch = latest_stable_pypi("torch")
     new_tv = latest_stable_pypi("torchvision")
+    new_audio = latest_stable_pypi("torchaudio")
     if cur_torch and version_key(new_torch) > version_key(cur_torch):
         files = replace_in(PYTORCH_WFS, "torch", cur_torch, new_torch)
         if files:
@@ -127,6 +153,10 @@ def main():
         files = replace_in(PYTORCH_WFS, "torchvision", cur_tv, new_tv)
         if files:
             changes.append(f"torchvision {cur_tv} -> {new_tv} ({', '.join(files)})")
+    if cur_audio and version_key(new_audio) > version_key(cur_audio):
+        files = replace_in(PYTORCH_WFS, "torchaudio", cur_audio, new_audio)
+        if files:
+            changes.append(f"torchaudio {cur_audio} -> {new_audio} ({', '.join(files)})")
 
     # TensorFlow (single matrix value).
     cur_tf = newest_pinned([TF_WF], "tf_version")
@@ -135,6 +165,18 @@ def main():
         files = replace_in([TF_WF], "tf_version", cur_tf, new_tf)
         if files:
             changes.append(f"tensorflow {cur_tf} -> {new_tf} ({', '.join(files)})")
+
+    # ComfyUI's source checkout is a release tag rather than a Python package.
+    current_comfy = re.findall(r'"comfyui_ref": "([^"]+)"', IMAGE_MATRIX.read_text())
+    new_comfy = latest_github_release("Comfy-Org/ComfyUI")
+    if current_comfy and any(tag != new_comfy for tag in current_comfy):
+        text = IMAGE_MATRIX.read_text()
+        text = re.sub(r'("comfyui_ref": ")[^"]+(")', rf"\g<1>{new_comfy}\g<2>", text)
+        IMAGE_MATRIX.write_text(text)
+        changes.append(
+            f"ComfyUI {current_comfy[0]} -> {new_comfy} "
+            f"({IMAGE_MATRIX.relative_to(ROOT).as_posix()})"
+        )
 
     # code-server (Dockerfile ARG version + both arch sha256). Every carrying
     # Dockerfile is rewritten in one pass: a partial bump would leave a stale
@@ -158,6 +200,13 @@ def main():
                 path.write_text(df)
                 rel = path.relative_to(ROOT).as_posix()
                 changes.append(f"code-server {cur_cs} -> {new_cs} ({rel}, sha256 recomputed)")
+
+    # A pin update changes build bytes. Advance the immutable release prefix
+    # in the same PR so merge never attempts to overwrite an existing tag.
+    if changes:
+        matrix, old_release, new_release = advance_release_tags(IMAGE_MATRIX.read_text())
+        IMAGE_MATRIX.write_text(matrix)
+        changes.append(f"release tags v{old_release} -> v{new_release} ({IMAGE_MATRIX.relative_to(ROOT).as_posix()})")
 
     summary = "\n".join(f"- {c}" for c in changes)
     print(summary if changes else "No pin updates available.")

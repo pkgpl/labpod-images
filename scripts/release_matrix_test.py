@@ -24,17 +24,17 @@ class ReleaseMatrixTest(unittest.TestCase):
     def test_full_scope_selects_all_variants_and_packages(self):
         scope = MODULE.release_scope(force_all=True)
         self.assertEqual(scope["release_required"], "true")
-        self.assertEqual(len(self.names_and_tags(scope)), 10)
-        self.assertEqual(len(self.package_names(scope)), 5)
+        self.assertEqual(len(self.names_and_tags(scope)), 26)
+        self.assertEqual(len(self.package_names(scope)), 13)
 
     def test_one_image_selects_only_its_variants(self):
         scope = MODULE.release_scope(["images/pytorch-jupyter/Dockerfile"])
         self.assertEqual(
             self.names_and_tags(scope),
             [
-                ("pytorch-jupyter", "cu121"),
-                ("pytorch-jupyter", "cu126"),
-                ("pytorch-jupyter", "cu129"),
+                ("pytorch-jupyter", "v1-cu121"),
+                ("pytorch-jupyter", "v1-cu126"),
+                ("pytorch-jupyter", "v1-cu129"),
             ],
         )
         self.assertEqual(self.package_names(scope), ["pytorch-jupyter"])
@@ -48,7 +48,7 @@ class ReleaseMatrixTest(unittest.TestCase):
         )
         self.assertEqual(
             self.names_and_tags(scope),
-            [("code-server", "latest"), ("tensorflow-jupyter", "cu125")],
+            [("code-server", "v1"), ("tensorflow-jupyter", "v1-cu125")],
         )
         self.assertEqual(
             self.package_names(scope), ["code-server", "tensorflow-jupyter"]
@@ -71,7 +71,41 @@ class ReleaseMatrixTest(unittest.TestCase):
         for path in MODULE.FULL_MATRIX_PATHS:
             with self.subTest(path=path):
                 scope = MODULE.release_scope([path])
-                self.assertEqual(len(self.names_and_tags(scope)), 10)
+                self.assertEqual(len(self.names_and_tags(scope)), 26)
+
+    def test_release_tags_are_immutable_and_channels_are_explicit(self):
+        scope = MODULE.release_scope(force_all=True)
+        tags = self.names_and_tags(scope)
+        self.assertNotIn(("code-server", "latest"), tags)
+        for _, tag in tags:
+            self.assertTrue(tag == "v1" or tag.startswith("v1-"), tag)
+
+        expected_new = {
+            ("miniforge-jupyterlab", "v1-cpu"),
+            ("uv-jupyterlab", "v1-py312"),
+            ("r-ml-jupyterlab", "v1-cpu"),
+            ("rstudio-server", "v1-cpu"),
+        }
+        for name in (
+            "llm-huggingface",
+            "comfyui-stable-diffusion",
+            "cuda-composite",
+            "parallel-dev",
+        ):
+            expected_new.update(
+                (name, f"v1-{channel}")
+                for channel in ("cu121", "cu126", "cu129")
+            )
+        self.assertTrue(expected_new.issubset(set(tags)))
+
+    def test_every_variant_exports_build_inputs_for_provenance(self):
+        scope = MODULE.release_scope(force_all=True)
+        for variant in scope["variant_matrix"]["include"]:
+            with self.subTest(variant=variant):
+                self.assertIn("build_input_args", variant)
+                self.assertEqual(
+                    variant["build_input_args"], variant["build_args"]
+                )
 
     def test_unknown_image_path_fails_closed(self):
         with self.assertRaisesRegex(ValueError, "no release-matrix entry"):

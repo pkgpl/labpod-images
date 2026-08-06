@@ -15,12 +15,12 @@ The GitHub Actions workflow publishes Linux `amd64` images to
 
 | Image tag | Base | Min host driver | Python | PyTorch / torchvision | GPU architecture |
 | --- | --- | --- | --- | --- | --- |
-| `cpu` | Ubuntu 24.04 | none (CPU-only) | 3.12 | 2.8.0+cpu / 0.23.0+cpu | none — runs on any host |
-| `cu121` | CUDA 12.1.1 on Ubuntu 22.04 | >= 530.30.02 | 3.10 | 2.5.1+cu121 / 0.20.1+cu121 | Maxwell (`sm_50`) through Hopper (`sm_90`) |
-| `cu126` | CUDA 12.6.3 on Ubuntu 24.04 | >= 560.35.05 | 3.12 | 2.8.0+cu126 / 0.23.0+cu126 | Maxwell (`sm_50`) through Hopper (`sm_90`) |
-| `cu129` | CUDA 12.9.1 on Ubuntu 24.04 | >= 575.57.08 | 3.12 | 2.8.0+cu129 / 0.23.0+cu129 | Volta (`sm_70`) through Blackwell (`sm_120`) |
+| `v1-cpu` | Ubuntu 24.04 | none (CPU-only) | 3.12 | 2.8.0+cpu / 0.23.0+cpu | none — runs on any host |
+| `v1-cu121` | CUDA 12.1.1 on Ubuntu 22.04 | >= 530.30.02 | 3.10 | 2.5.1+cu121 / 0.20.1+cu121 | Maxwell (`sm_50`) through Hopper (`sm_90`) |
+| `v1-cu126` | CUDA 12.6.3 on Ubuntu 24.04 | >= 560.35.05 | 3.12 | 2.8.0+cu126 / 0.23.0+cu126 | Maxwell (`sm_50`) through Hopper (`sm_90`) |
+| `v1-cu129` | CUDA 12.9.1 on Ubuntu 24.04 | >= 575.57.08 | 3.12 | 2.8.0+cu129 / 0.23.0+cu129 | Volta (`sm_70`) through Blackwell (`sm_120`) |
 
-The **`cpu`** tag is the fast, always-works demo default: no CUDA, no host-driver
+The **`v1-cpu`** tag is the fast, always-works demo default: no CUDA, no host-driver
 requirement, runs on any host (GPU or not). Use a `cu<xx>` tag to demo GPU
 allocation and GPU monitoring — pick one that matches the host driver and GPU
 (same guidance as the `pytorch-jupyter` image; the `cu129` wheels drop pre-Volta,
@@ -37,8 +37,8 @@ compatibility floor (`>= 525.60.13`).
   the rootless Podman container. The `cpu` image needs neither.
 - Python packages live in `/opt/venv`; it is first on `PATH`.
 - Published only for `linux/amd64`.
-- The scientific stack, code-server, MLflow, and Aim intentionally float between
-  scheduled rebuilds; the CUDA/torch versions above are pinned.
+- Release tags are immutable. Unique weekly rebuild tags expose upstream
+  dependency drift without changing an installed lab's environment.
 
 ## Local build
 

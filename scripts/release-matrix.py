@@ -11,15 +11,25 @@ CATALOG = ROOT / ".github" / "image-matrix.json"
 FULL_MATRIX_PATHS = {
     ".github/image-matrix.json",
     ".github/workflows/images.yml",
+    "scripts/build-input-digest.py",
+    "scripts/published-metadata.py",
     "scripts/release-matrix.py",
     "scripts/smoke-image.sh",
 }
 PACKAGE_CURRENT_TAG = {
-    "code-server": "latest",
-    "pytorch-jupyter": "cu126",
-    "tensorflow-jupyter": "cu125",
-    "scipy-jupyter": "py312",
-    "pytorch-demo": "cpu",
+    "code-server": "v1",
+    "pytorch-jupyter": "v1-cu126",
+    "tensorflow-jupyter": "v1-cu125",
+    "scipy-jupyter": "v1-py312",
+    "pytorch-demo": "v1-cpu",
+    "miniforge-jupyterlab": "v1-cpu",
+    "uv-jupyterlab": "v1-py312",
+    "r-ml-jupyterlab": "v1-cpu",
+    "rstudio-server": "v1-cpu",
+    "llm-huggingface": "v1-cu126",
+    "comfyui-stable-diffusion": "v1-cu126",
+    "cuda-composite": "v1-cu126",
+    "parallel-dev": "v1-cu126",
 }
 
 
@@ -58,11 +68,39 @@ def build_args(variant):
         )
     if name == "scipy-jupyter":
         return f"BASE_IMAGE={variant['base']}"
+    if name == "miniforge-jupyterlab":
+        return f"BASE_IMAGE={variant['base']}"
+    if name == "uv-jupyterlab":
+        return f"PYTHON_BASE={variant['base']}"
+    if name in {"r-ml-jupyterlab", "rstudio-server"}:
+        return f"BASE_IMAGE={variant['base']}"
+    if name == "llm-huggingface":
+        return "\n".join(
+            (
+                f"CUDA_BASE_IMAGE={variant['base']}",
+                f"TORCH_CUDA={variant['torch_cuda']}",
+                f"TORCH_VERSION={variant['torch']}",
+            )
+        )
+    if name == "comfyui-stable-diffusion":
+        return "\n".join(
+            (
+                f"CUDA_BASE_IMAGE={variant['base']}",
+                f"TORCH_CUDA={variant['torch_cuda']}",
+                f"TORCH_VERSION={variant['torch']}",
+                f"TORCHVISION_VERSION={variant['torchvision']}",
+                f"TORCHAUDIO_VERSION={variant['torchaudio']}",
+                f"COMFYUI_REF={variant['comfyui_ref']}",
+            )
+        )
+    if name in {"cuda-composite", "parallel-dev"}:
+        return f"CUDA_BASE_IMAGE={variant['base']}"
     return ""
 
 
 def workflow_variant(variant):
     name = variant["name"]
+    args = build_args(variant)
     return {
         "name": name,
         "repository": f"ghcr.io/labpod/{name}",
@@ -70,7 +108,8 @@ def workflow_variant(variant):
         "context": f"images/{name}",
         "dockerfile": f"images/{name}/Dockerfile",
         "kind": name,
-        "build_args": build_args(variant),
+        "build_args": args,
+        "build_input_args": args,
     }
 
 

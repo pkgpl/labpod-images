@@ -61,6 +61,13 @@ class BumpImagePinsTest(unittest.TestCase):
         self.assertNotIn(old_amd64, updated)
         self.assertNotIn(old_arm64, updated)
 
+    def test_release_tag_prefix_advances_without_changing_channels(self):
+        source = '{"variants":[{"tag":"v1"},{"tag":"v1-cu121"}]}'
+        updated, old_version, new_version = MODULE.advance_release_tags(source)
+        self.assertEqual((old_version, new_version), (1, 2))
+        self.assertIn('"tag":"v2"', updated)
+        self.assertIn('"tag":"v2-cu121"', updated)
+
     def test_all_code_server_carriers_share_one_complete_pin(self):
         pins = set()
         for path in MODULE.CODE_SERVER_DOCKERFILES:
@@ -73,6 +80,22 @@ class BumpImagePinsTest(unittest.TestCase):
             self.assertIsNotNone(arm64, path)
             pins.add((version.group(1), amd64.group(1), arm64.group(1)))
         self.assertEqual(len(pins), 1)
+
+    def test_new_images_are_covered_by_pin_automation(self):
+        dependabot = (MODULE.ROOT / ".github" / "dependabot.yml").read_text()
+        for name in (
+            "miniforge-jupyterlab",
+            "uv-jupyterlab",
+            "r-ml-jupyterlab",
+            "rstudio-server",
+            "llm-huggingface",
+            "comfyui-stable-diffusion",
+            "cuda-composite",
+            "parallel-dev",
+        ):
+            self.assertIn(f"/images/{name}", dependabot)
+        self.assertIn("torchaudio", MODULE.IMAGE_MATRIX.read_text())
+        self.assertIn("comfyui_ref", MODULE.IMAGE_MATRIX.read_text())
 
 
 if __name__ == "__main__":

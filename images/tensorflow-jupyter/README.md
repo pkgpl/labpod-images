@@ -11,7 +11,7 @@ The GitHub Actions workflow publishes Linux `amd64` images to
 
 | Image tag | CUDA runtime base | Minimum Linux host driver | Python | TensorFlow | GPU architecture |
 | --- | --- | --- | --- | --- | --- |
-| `cu125` | CUDA 12.5.1 on Ubuntu 24.04 | >= 525.60.13 | 3.12 | 2.21.0 (`tensorflow[and-cuda]`, CUDA 12.5+ / cuDNN 9.3) | Pascal (`sm_60`) and newer |
+| `v1-cu125` | CUDA 12.5.1 on Ubuntu 24.04 | >= 525.60.13 | 3.12 | 2.21.0 (`tensorflow[and-cuda]`, CUDA 12.5+ / cuDNN 9.3) | Pascal (`sm_60`) and newer |
 
 Unlike the PyTorch image, TensorFlow's `and-cuda` extra bundles its own CUDA
 user-space through pip `nvidia-*` wheels. The effective CUDA runtime is
@@ -37,14 +37,13 @@ specific GPU.
 - The image is published only for `linux/amd64`. The CUDA base images may
   support other architectures, but they are not built or published by this
   workflow.
-- `jupyterlab` and the scientific stack intentionally float between scheduled
-  rebuilds. The TensorFlow version above is pinned; its bundled CUDA wheels are
-  resolved from the `and-cuda` extra at build time.
+- Release tags are immutable. Unique weekly rebuild tags expose upstream
+  dependency drift without changing an installed lab's environment.
 - code-server (browser VS Code, container port `8080`) is installed from the
   upstream `.deb`, pinned by version and verified against a sha256 recorded in
   the Dockerfile. It bundles its own Node runtime and does not use `/opt/venv`.
-  `scripts/bump-image-pins.py` bumps the pin here, in the PyTorch image, and in
-  the demo image together. code-server writes user data (settings, installed
+  `scripts/bump-image-pins.py` bumps every carrying image together and advances
+  the immutable release prefix. code-server writes user data (settings, installed
   extensions) under `$HOME`, so those persist only when the workspace's home
   directory is on persistent storage.
 - After allocating a GPU, confirm `tf.config.list_physical_devices('GPU')` lists

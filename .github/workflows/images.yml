@@ -77,9 +77,10 @@ jobs:
 
       - name: Verify package write access
         env:
-          SOURCE_REF: ${{ matrix.repository }}:${{ matrix.current_tag }}
           PROBE_REF: ${{ matrix.repository }}:access-${{ github.sha }}
-        run: docker buildx imagetools create --tag "$PROBE_REF" "$SOURCE_REF"
+        run: |
+          printf 'FROM scratch\nLABEL ai.labpod.image.access-probe=true\n' | \
+            docker buildx build --file - --tag "$PROBE_REF" --push -
 
   validate:
     name: validate (${{ matrix.name }}:${{ matrix.tag }})
@@ -108,6 +109,45 @@ jobs:
       - name: Set up Buildx
         uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
 
+      - name: Check release tag availability
+        if: github.event_name == 'pull_request'
+        env:
+          STABLE_REF: ${{ matrix.repository }}:${{ matrix.tag }}
+        run: |
+          if docker buildx imagetools inspect "$STABLE_REF" >/dev/null 2>&1; then
+            echo "::error::$STABLE_REF release tag already exists; advance the vN prefix" >&2
+            exit 1
+          fi
+
+      - name: Select candidate reference
+        id: refs
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REPOSITORY: ${{ matrix.repository }}
+          RELEASE_TAG: ${{ matrix.tag }}
+          SOURCE_SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == schedule || "$EVENT_NAME" == workflow_dispatch ]]; then
+            REBUILD_DATE=$(date -u +%Y%m%d)
+            REBUILD_REF="${REPOSITORY}:rebuild-${REBUILD_DATE}-${RUN_ID}-${RUN_ATTEMPT}-${RELEASE_TAG}"
+            echo "candidate_ref=$REBUILD_REF" >> "$GITHUB_OUTPUT"
+          else
+            echo "candidate_ref=${REPOSITORY}:candidate-${SOURCE_SHA}-${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Compute build-input digest
+        id: build_input
+        env:
+          BUILD_INPUT_ARGS: ${{ matrix.build_input_args }}
+        run: >-
+          python3 scripts/build-input-digest.py
+          --context "${{ matrix.context }}"
+          --dockerfile "${{ matrix.dockerfile }}"
+          --build-args "$BUILD_INPUT_ARGS"
+
       - name: Build candidate
         id: build
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
@@ -118,15 +158,18 @@ jobs:
           platforms: linux/amd64
           provenance: mode=max
           sbom: true
-          labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-          tags: ${{ matrix.repository }}:candidate-${{ github.sha }}-${{ matrix.tag }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            ai.labpod.image.build-input-digest=${{ steps.build_input.outputs.digest }}
+          tags: ${{ steps.refs.outputs.candidate_ref }}
           build-args: ${{ matrix.build_args }}
 
       - name: Smoke candidate through anonymous pull
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         env:
-          CANDIDATE_REF: ${{ matrix.repository }}:candidate-${{ github.sha }}-${{ matrix.tag }}
+          CANDIDATE_REF: ${{ steps.refs.outputs.candidate_ref }}
           EXPECTED_DIGEST: ${{ steps.build.outputs.digest }}
+          EXPECTED_BUILD_INPUT_DIGEST: ${{ steps.build_input.outputs.digest }}
           IMAGE_KIND: ${{ matrix.kind }}
         run: |
           set -euo pipefail
@@ -140,7 +183,7 @@ jobs:
   promote:
     name: promote (${{ matrix.name }}:${{ matrix.tag }})
     needs: [changes, validate]
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && needs.validate.result == 'success'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.validate.result == 'success'
     runs-on: ubuntu-22.04
     permissions:
       contents: read
@@ -167,6 +210,11 @@ jobs:
           STABLE_REF: ${{ matrix.repository }}:${{ matrix.tag }}
         run: |
           set -euo pipefail
+          # Refuse to overwrite immutable release tag: release tags are an API.
+          if docker buildx imagetools inspect "$STABLE_REF" >/dev/null 2>&1; then
+            echo "::error::$STABLE_REF already exists; bump the release tag" >&2
+            exit 1
+          fi
           docker buildx imagetools create --tag "$STABLE_REF" "$CANDIDATE_REF"
           candidate_digest=$(docker buildx imagetools inspect --raw "$CANDIDATE_REF" | sha256sum | awk '{ print "sha256:" $1 }')
           stable_digest=$(docker buildx imagetools inspect --raw "$STABLE_REF" | sha256sum | awk '{ print "sha256:" $1 }')
@@ -192,7 +240,8 @@ jobs:
       PACKAGE_ACCESS_RESULT: ${{ needs.package-access.result }}
       VALIDATE_RESULT: ${{ needs.validate.result }}
       PROMOTE_RESULT: ${{ needs.promote.result }}
-      SHOULD_PROMOTE: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+      SHOULD_BUILD_REMOTE: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+      SHOULD_PROMOTE: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
     steps:
       - name: Require the complete release result
         run: |
@@ -202,10 +251,13 @@ jobs:
             exit 0
           fi
           [[ "$VALIDATE_RESULT" == success ]]
-          if [[ "$SHOULD_PROMOTE" == true ]]; then
+          if [[ "$SHOULD_BUILD_REMOTE" == true ]]; then
             [[ "$PACKAGE_ACCESS_RESULT" == success ]]
-            [[ "$PROMOTE_RESULT" == success ]]
           else
             [[ "$PACKAGE_ACCESS_RESULT" == skipped ]]
+          fi
+          if [[ "$SHOULD_PROMOTE" == true ]]; then
+            [[ "$PROMOTE_RESULT" == success ]]
+          else
             [[ "$PROMOTE_RESULT" == skipped ]]
           fi

@@ -11,9 +11,9 @@ The GitHub Actions workflow publishes Linux `amd64` images to
 
 | Image tag | CUDA runtime base | Minimum Linux host driver | Python | PyTorch / torchvision | GPU architecture |
 | --- | --- | --- | --- | --- | --- |
-| `cu121` | CUDA 12.1.1 on Ubuntu 22.04 | >= 530.30.02 | 3.10 | 2.5.1+cu121 / 0.20.1+cu121 | Maxwell (`sm_50`) through Hopper (`sm_90`) |
-| `cu126` | CUDA 12.6.3 on Ubuntu 24.04 | >= 560.35.05 | 3.12 | 2.8.0+cu126 / 0.23.0+cu126 | Maxwell (`sm_50`) through Hopper (`sm_90`) |
-| `cu129` | CUDA 12.9.1 on Ubuntu 24.04 | >= 575.57.08 | 3.12 | 2.8.0+cu129 / 0.23.0+cu129 | Volta (`sm_70`) through Blackwell (`sm_120`) |
+| `v1-cu121` | CUDA 12.1.1 on Ubuntu 22.04 | >= 530.30.02 | 3.10 | 2.5.1+cu121 / 0.20.1+cu121 | Maxwell (`sm_50`) through Hopper (`sm_90`) |
+| `v1-cu126` | CUDA 12.6.3 on Ubuntu 24.04 | >= 560.35.05 | 3.12 | 2.8.0+cu126 / 0.23.0+cu126 | Maxwell (`sm_50`) through Hopper (`sm_90`) |
+| `v1-cu129` | CUDA 12.9.1 on Ubuntu 24.04 | >= 575.57.08 | 3.12 | 2.8.0+cu129 / 0.23.0+cu129 | Volta (`sm_70`) through Blackwell (`sm_120`) |
 
 The `cu129` wheel family does not support pre-Volta GPUs, so use `cu121` or
 `cu126` for Maxwell- or Pascal-class hardware. The CUDA runtime is selected to
@@ -39,13 +39,13 @@ restrictions; use the table values for the normal supported path.
 - The image is published only for `linux/amd64`. The CUDA base images may
   support other architectures, but they are not built or published by this
   workflow.
-- `jupyterlab` and the scientific stack intentionally float between scheduled
-  rebuilds. The CUDA, PyTorch, and torchvision versions above are pinned.
+- Release tags are immutable. Unique weekly rebuild tags expose upstream
+  dependency drift without changing an installed lab's environment.
 - code-server (browser VS Code, container port `8080`) is installed from the
   upstream `.deb`, pinned by version and verified against a sha256 recorded in
   the Dockerfile. It bundles its own Node runtime and does not use `/opt/venv`.
-  `scripts/bump-image-pins.py` bumps the pin here, in the TensorFlow image, and
-  in the demo image together. code-server writes user data (settings, installed
+  `scripts/bump-image-pins.py` bumps every carrying image together and advances
+  the immutable release prefix. code-server writes user data (settings, installed
   extensions) under `$HOME`, so those persist only when the workspace's home
   directory is on persistent storage.
 

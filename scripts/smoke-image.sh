@@ -2,7 +2,7 @@
 set -euo pipefail
 
 usage() {
-  echo "usage: $0 <image-ref> <code-server|pytorch-jupyter|tensorflow-jupyter|scipy-jupyter|pytorch-demo>" >&2
+  echo "usage: $0 <image-ref> <image-kind>" >&2
   exit 2
 }
 
@@ -12,7 +12,9 @@ image_kind=$2
 engine=${CONTAINER_ENGINE:-docker}
 
 case "$image_kind" in
-  code-server|pytorch-jupyter|tensorflow-jupyter|scipy-jupyter|pytorch-demo) ;;
+  code-server|pytorch-jupyter|tensorflow-jupyter|scipy-jupyter|pytorch-demo|\
+  miniforge-jupyterlab|uv-jupyterlab|r-ml-jupyterlab|rstudio-server|\
+  llm-huggingface|comfyui-stable-diffusion|cuda-composite|parallel-dev) ;;
   *) usage ;;
 esac
 
@@ -37,6 +39,15 @@ trap cleanup EXIT
   || fail "image WORKDIR is not /work"
 [[ $("$engine" image inspect --format '{{json .Config.Entrypoint}}' "$image_ref") == '["sleep","infinity"]' ]] \
   || fail "image entrypoint is not sleep infinity"
+
+build_input_digest=$("$engine" image inspect --format \
+  '{{index .Config.Labels "ai.labpod.image.build-input-digest"}}' "$image_ref")
+[[ "$build_input_digest" =~ ^sha256:[0-9a-f]{64}$ ]] \
+  || fail "image lacks a valid build-input digest label"
+if [[ -n "${EXPECTED_BUILD_INPUT_DIGEST:-}" ]]; then
+  [[ "$build_input_digest" == "$EXPECTED_BUILD_INPUT_DIGEST" ]] \
+    || fail "build-input digest label does not match workflow input"
+fi
 
 container_id=$("$engine" run -d "$image_ref")
 for _ in $(seq 1 10); do
@@ -111,6 +122,62 @@ case "$image_kind" in
       "code-server --bind-addr 127.0.0.1:8080 --auth none /work"
     probe_http ttyd 7681 / \
       "ttyd -i 127.0.0.1 -p 7681 sh"
+    ;;
+  miniforge-jupyterlab)
+    "$engine" exec "$container_id" conda --version
+    "$engine" exec "$container_id" python -c 'import ipywidgets, jupyterlab'
+    probe_http jupyter 8888 /lab \
+      "jupyter lab --allow-root --no-browser --ip=127.0.0.1 --port=8888 --ServerApp.token='' --ServerApp.password=''"
+    ;;
+  uv-jupyterlab)
+    "$engine" exec "$container_id" uv --version
+    "$engine" exec "$container_id" python3 -c 'import ipywidgets, jupyterlab'
+    probe_http jupyter 8888 /lab \
+      "jupyter lab --allow-root --no-browser --ip=127.0.0.1 --port=8888 --ServerApp.token='' --ServerApp.password=''"
+    ;;
+  r-ml-jupyterlab)
+    "$engine" exec "$container_id" Rscript -e \
+      'stopifnot(requireNamespace("tidymodels"), requireNamespace("IRkernel"))'
+    "$engine" exec "$container_id" python -c 'import jupyterlab, numpy'
+    probe_http jupyter 8888 /lab \
+      "jupyter lab --allow-root --no-browser --ip=127.0.0.1 --port=8888 --ServerApp.token='' --ServerApp.password=''"
+    ;;
+  rstudio-server)
+    "$engine" exec "$container_id" R --version
+    probe_http rstudio 8787 / \
+      "labpod-rstudio --www-port=8787"
+    ;;
+  llm-huggingface)
+    "$engine" exec "$container_id" python3 -c \
+      'import accelerate, datasets, peft, torch, transformers; assert torch.tensor([2]).item() == 2'
+    "$engine" exec "$container_id" code-server --version
+    probe_http jupyter 8888 /lab \
+      "jupyter lab --allow-root --no-browser --ip=127.0.0.1 --port=8888 --ServerApp.token='' --ServerApp.password=''"
+    probe_http code-server 8080 / \
+      "code-server --bind-addr 127.0.0.1:8080 --auth none /work"
+    ;;
+  comfyui-stable-diffusion)
+    "$engine" exec "$container_id" sh -c \
+      'cd /opt/ComfyUI && python3 -c "import folder_paths, torch"'
+    probe_http comfyui 8188 / \
+      "comfyui --listen 127.0.0.1 --port 8188 --cpu"
+    ;;
+  cuda-composite)
+    "$engine" exec "$container_id" python3 -c \
+      'import aim, gradio, jupyterlab, mlflow, sklearn, tensorboard'
+    "$engine" exec "$container_id" code-server --version
+    "$engine" exec "$container_id" ttyd --version
+    probe_http jupyter 8888 /lab \
+      "jupyter lab --allow-root --no-browser --ip=127.0.0.1 --port=8888 --ServerApp.token='' --ServerApp.password=''"
+    probe_http code-server 8080 / \
+      "code-server --bind-addr 127.0.0.1:8080 --auth none /work"
+    ;;
+  parallel-dev)
+    "$engine" exec "$container_id" nvcc --version
+    "$engine" exec "$container_id" mpicc --version
+    "$engine" exec "$container_id" code-server --version
+    probe_http code-server 8080 / \
+      "code-server --bind-addr 127.0.0.1:8080 --auth none /work"
     ;;
 esac
 

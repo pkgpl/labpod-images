@@ -8,26 +8,40 @@ kept solely for compatibility with older server releases are not retained.
 
 ## Images
 
-| Image | Purpose | Example |
-|---|---|---|
-| [`code-server`](https://github.com/orgs/LabPod/packages/container/package/code-server) | Browser-based VS Code workspace | `ghcr.io/labpod/code-server:latest` |
-| [`pytorch-jupyter`](https://github.com/orgs/LabPod/packages/container/package/pytorch-jupyter) | PyTorch, JupyterLab, TensorBoard, and code-server | `ghcr.io/labpod/pytorch-jupyter:cu126` |
-| [`tensorflow-jupyter`](https://github.com/orgs/LabPod/packages/container/package/tensorflow-jupyter) | TensorFlow, JupyterLab, TensorBoard, and code-server | `ghcr.io/labpod/tensorflow-jupyter:cu125` |
-| [`scipy-jupyter`](https://github.com/orgs/LabPod/packages/container/package/scipy-jupyter) | CPU data-science and JupyterLab environment | `ghcr.io/labpod/scipy-jupyter:py312` |
-| [`pytorch-demo`](https://github.com/orgs/LabPod/packages/container/package/pytorch-demo) | LabPod demonstration workspace | `ghcr.io/labpod/pytorch-demo:cpu` |
+Pull sizes below are approximate compressed transfer sizes for Linux amd64.
+They are capacity-planning estimates for the initial `v1` catalog; registry
+package pages are authoritative once the workflow has published the images.
+
+| Image | Purpose | Immutable tag(s) | Approx. pull size per tag |
+|---|---|---|---|
+| `code-server` | Browser-based VS Code workspace | `v1` | 180 MB |
+| `pytorch-jupyter` | PyTorch, JupyterLab, TensorBoard, code-server | `v1-cu121`, `v1-cu126`, `v1-cu129` | 4.3 GB, 4.8 GB, 5.0 GB |
+| `tensorflow-jupyter` | TensorFlow, JupyterLab, TensorBoard, code-server | `v1-cu125` | 4.2 GB |
+| `scipy-jupyter` | CPU data-science and JupyterLab | `v1-py312` | 850 MB |
+| `pytorch-demo` | LabPod demonstration workspace | `v1-cpu`, `v1-cu121`, `v1-cu126`, `v1-cu129` | 2.2 GB, 4.4 GB, 4.9 GB, 5.1 GB |
+| `miniforge-jupyterlab` | conda-forge Python and JupyterLab | `v1-cpu` | 750 MB |
+| `uv-jupyterlab` | Lightweight uv/Python and JupyterLab | `v1-py312` | 420 MB |
+| `r-ml-jupyterlab` | R ML packages, IRkernel, and JupyterLab | `v1-cpu` | 2.4 GB |
+| `rstudio-server` | Rootless, proxy-authenticated RStudio Server | `v1-cpu` | 1.8 GB |
+| `llm-huggingface` | Hugging Face fine-tuning/inference stack | `v1-cu121`, `v1-cu126`, `v1-cu129` | 4.9 GB, 5.3 GB, 5.5 GB |
+| `comfyui-stable-diffusion` | ComfyUI without bundled model weights | `v1-cu121`, `v1-cu126`, `v1-cu129` | 4.8 GB, 5.2 GB, 5.4 GB |
+| `cuda-composite` | CUDA, JupyterLab, MLflow, Aim, code-server | `v1-cu121`, `v1-cu126`, `v1-cu129` | 2.1 GB, 2.5 GB, 2.7 GB |
+| `parallel-dev` | CUDA/MPI/OpenMP toolchain and OSS code-server | `v1-cu121`, `v1-cu126`, `v1-cu129` | 5.0 GB, 5.6 GB, 5.9 GB |
 
 Pull an image with Podman, for example:
 
 ```bash
-podman pull ghcr.io/labpod/pytorch-jupyter:cu126
+podman pull ghcr.io/labpod/pytorch-jupyter:v1-cu126
 ```
 
 ## Tags and reproducibility
 
-Tags such as `cu121`, `cu126`, `cu129`, `cu125`, `py312`, and `cpu` describe
-runtime compatibility channels. They may be rebuilt to pick up security and
-dependency updates. Pin an image digest when an exact, reproducible image is
-required.
+Release tags are immutable. The workflow refuses to overwrite an existing
+`v1` tag; a source or dependency update must advance the release prefix. Tag
+suffixes such as `cu121`, `cu126`, `cu129`, `cu125`, `py312`, and `cpu`
+describe runtime compatibility. Weekly rebuilds publish unique, immutable
+`rebuild-<date>-<run>-<attempt>-<release-tag>` audit tags and smoke those bytes
+without moving the release tags consumed by LabPod.
 
 The host supplies the NVIDIA driver for GPU images. Select a CUDA channel that
 is compatible with both the host driver and GPU architecture; see each image's
@@ -51,10 +65,30 @@ registry credentials. The weekly schedule and manual dispatch run the complete
 matrix to catch base-image and floating-dependency drift.
 
 The release workflow stamps `org.opencontainers.image.source` on every image so
-GHCR can associate all five organization-scoped packages with this repository.
+GHCR can associate every organization-scoped package with this repository.
 
-Candidate tags are retained as an audit trail for the bytes promoted by a
-given source commit. CUDA execution and driver/GPU-architecture compatibility
+Every image also carries
+`ai.labpod.image.build-input-digest=sha256:<hex>`. This is the offline,
+server-reproducible `labpod.build-input.v1` digest used by LabPod's published
+image metadata. The SHA-256 input starts with the NUL-terminated magic string
+`labpod.build-input.v1`. Each following record frames `kind`, `key`, and
+`value` as an unsigned big-endian 64-bit byte length followed by those bytes.
+Records are the exact Dockerfile bytes under key `Dockerfile`, regular build
+context files sorted by POSIX path, explicit build arguments sorted by name,
+and external `FROM` references in Dockerfile order after ARG expansion and
+reference normalization. Prior build-stage aliases are skipped. Bundle
+contexts reject symlinks and therefore the digest contract does too. Registry
+lookups are deliberately not part of the algorithm, so an air-gapped LabPod
+server can recompute it.
+
+[`published-images.json`](published-images.json) is the generated,
+machine-readable handoff for LabPod bundles: it records each canonical
+Dockerfile, default and per-variant build arguments, immutable references, and
+definition digests. Regenerate or verify it with
+`scripts/published-metadata.py --write` or `--check`.
+
+Candidate and weekly rebuild tags are retained as an audit trail for the bytes
+built by a given source revision. CUDA execution and driver/GPU-architecture compatibility
 still require a real NVIDIA host; hosted CI validates CPU execution and the
 packaged CUDA/Python dependency graph, not a real GPU kernel.
 
