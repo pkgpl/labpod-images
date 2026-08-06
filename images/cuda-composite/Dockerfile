@@ -1,7 +1,9 @@
 ARG CUDA_BASE_IMAGE=docker.io/nvidia/cuda:12.1.1-runtime-ubuntu22.04
 FROM ${CUDA_BASE_IMAGE}
 
-ENV DEBIAN_FRONTEND=noninteractive
+ENV DEBIAN_FRONTEND=noninteractive \
+    VIRTUAL_ENV=/opt/venv \
+    PATH=/opt/venv/bin:${PATH}
 ARG CODE_SERVER_VERSION=4.118.0
 ARG CODE_SERVER_SHA256_AMD64=fe2988f313c9047c1e1ccccee10ad8ccf2813b66a02c146e7d4fd2a3f7e2dc81
 ARG CODE_SERVER_SHA256_ARM64=81fa5486a674428507cfb68025764646bdb99c345b8ca798fd94a13ea056eeb3
@@ -13,13 +15,13 @@ RUN apt-get update \
     && (apt-get install -y --no-install-recommends btop || true) \
     && rm -rf /var/lib/apt/lists/*
 
-RUN python3 -m pip install --no-cache-dir uv \
-    && uv_path="$(python3 -c 'import shutil; print(shutil.which("uv") or "")')" \
-    && test -n "$uv_path" \
-    && if [ "$uv_path" != "/usr/local/bin/uv" ]; then ln -sf "$uv_path" /usr/local/bin/uv; fi \
+RUN python3 -m venv "$VIRTUAL_ENV" \
+    && "$VIRTUAL_ENV/bin/python" -m pip install --no-cache-dir uv \
+    && uv_path="$(command -v uv)" \
+    && test "$uv_path" = "$VIRTUAL_ENV/bin/uv" \
     && uv --version
 
-RUN uv pip install --system --no-cache \
+RUN uv pip install --python "$VIRTUAL_ENV/bin/python" --no-cache \
         jupyterlab ipywidgets jupyter-resource-usage tensorboard mlflow aim \
         numpy scipy scikit-learn pandas matplotlib seaborn transformers \
         datasets accelerate peft safetensors streamlit gradio

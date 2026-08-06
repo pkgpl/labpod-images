@@ -1,7 +1,10 @@
 ARG CUDA_BASE_IMAGE=docker.io/nvidia/cuda:12.1.1-runtime-ubuntu22.04
 FROM ${CUDA_BASE_IMAGE}
 
-ENV DEBIAN_FRONTEND=noninteractive HF_HUB_ENABLE_HF_TRANSFER=1
+ENV DEBIAN_FRONTEND=noninteractive \
+    HF_HUB_ENABLE_HF_TRANSFER=1 \
+    VIRTUAL_ENV=/opt/venv \
+    PATH=/opt/venv/bin:${PATH}
 ARG TORCH_CUDA=cu121
 ARG TORCH_VERSION=2.5.1
 ARG CODE_SERVER_VERSION=4.118.0
@@ -17,19 +20,19 @@ RUN apt-get update \
     && git lfs install --system \
     && rm -rf /var/lib/apt/lists/*
 
-RUN python3 -m pip install --no-cache-dir uv \
-    && uv_path="$(python3 -c 'import shutil; print(shutil.which("uv") or "")')" \
-    && test -n "$uv_path" \
-    && if [ "$uv_path" != "/usr/local/bin/uv" ]; then ln -sf "$uv_path" /usr/local/bin/uv; fi \
+RUN python3 -m venv "$VIRTUAL_ENV" \
+    && "$VIRTUAL_ENV/bin/python" -m pip install --no-cache-dir uv \
+    && uv_path="$(command -v uv)" \
+    && test "$uv_path" = "$VIRTUAL_ENV/bin/uv" \
     && uv --version
 
 # Use the matching PyTorch wheel index as the sole index so a newer PyPI
 # wheel cannot silently replace the CUDA-pinned build.
-RUN uv pip install --system --no-cache \
+RUN uv pip install --python "$VIRTUAL_ENV/bin/python" --no-cache \
         --index-url "https://download.pytorch.org/whl/${TORCH_CUDA}" \
         "torch==${TORCH_VERSION}"
 
-RUN uv pip install --system --no-cache \
+RUN uv pip install --python "$VIRTUAL_ENV/bin/python" --no-cache \
         jupyterlab ipywidgets jupyter-resource-usage tensorboard transformers \
         datasets accelerate peft trl bitsandbytes sentencepiece safetensors \
         huggingface_hub hf-transfer einops evaluate numpy pandas

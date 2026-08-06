@@ -277,11 +277,11 @@
       },
       "published": {
         "ref": "ghcr.io/labpod/llm-huggingface:v1-cu126",
-        "definition_digest": "sha256:7d4aaa10d4d81edd0633b69a802b1141545e559be759ae5525d546d854c9a2c4",
+        "definition_digest": "sha256:b5ab57ed8b56474982a97acc58a1e061154d76263f0f35458a3b65b5d620de81",
         "variants": [
           {
             "ref": "ghcr.io/labpod/llm-huggingface:v1-cu121",
-            "definition_digest": "sha256:ea89758e972c1560d20e8cf845e6227917090336265e02c9e182cdacd71e5453",
+            "definition_digest": "sha256:eeb256aaa663ddbc66575bccfbe11cc06d9c58013f59876bd0ac64ebbc0828df",
             "build_args": {
               "CUDA_BASE_IMAGE": "docker.io/nvidia/cuda:12.1.1-runtime-ubuntu22.04",
               "TORCH_CUDA": "cu121",
@@ -290,7 +290,7 @@
           },
           {
             "ref": "ghcr.io/labpod/llm-huggingface:v1-cu129",
-            "definition_digest": "sha256:318d74cb186b141f7d0201f36868fe844bb5fa98147540304a7e3e9ae3012fa3",
+            "definition_digest": "sha256:d39504fd2a2860f11d1fc7bf58ad1d826cfba7c2265a0842fb93b08ee4f500a7",
             "build_args": {
               "CUDA_BASE_IMAGE": "docker.io/nvidia/cuda:12.9.1-runtime-ubuntu24.04",
               "TORCH_CUDA": "cu129",
@@ -339,11 +339,11 @@
       },
       "published": {
         "ref": "ghcr.io/labpod/comfyui-stable-diffusion:v1-cu126",
-        "definition_digest": "sha256:62fb29029b7ea1c70bd3b9dbf49bf8b185215b54b8f2d6ab24290045e0ea5bdf",
+        "definition_digest": "sha256:a4daf259db3119d413a9ea5913300b91d14547b834617966531669ae721f5d26",
         "variants": [
           {
             "ref": "ghcr.io/labpod/comfyui-stable-diffusion:v1-cu121",
-            "definition_digest": "sha256:6769ea17d438b92b758a571f2a575ca96d2a3703d643babe9024750cdfba7780",
+            "definition_digest": "sha256:d6acc405c2b70cc6a8c35b4703a5c59a37d13c32f55aca33a50401af010bbc63",
             "build_args": {
               "COMFYUI_REF": "v0.3.51",
               "CUDA_BASE_IMAGE": "docker.io/nvidia/cuda:12.1.1-runtime-ubuntu22.04",
@@ -355,7 +355,7 @@
           },
           {
             "ref": "ghcr.io/labpod/comfyui-stable-diffusion:v1-cu129",
-            "definition_digest": "sha256:c120a077c74add97aa809413f1debb629616682777f382a3f0240598a98c0c24",
+            "definition_digest": "sha256:61a6e3fcfc0cae4a46cba3db224f27411cc2453cbbdd5acffff1226aa94e2c06",
             "build_args": {
               "COMFYUI_REF": "v0.3.51",
               "CUDA_BASE_IMAGE": "docker.io/nvidia/cuda:12.9.1-runtime-ubuntu24.04",
@@ -387,18 +387,18 @@
       },
       "published": {
         "ref": "ghcr.io/labpod/cuda-composite:v1-cu126",
-        "definition_digest": "sha256:cf1b4b364a0826d98083ba21be8a84cc6bcbb22282cca21cf10214ef2f80a3eb",
+        "definition_digest": "sha256:6661a18e0f2ffd1f0047b3d420880ae80a1897421d01fcd8952ee54dd1cdab56",
         "variants": [
           {
             "ref": "ghcr.io/labpod/cuda-composite:v1-cu121",
-            "definition_digest": "sha256:456b2aa4e365bbda90e28b4b13012f72e00cf1a31002f2cd3f93cc4ad7ccd51c",
+            "definition_digest": "sha256:ec5e4e14460cbce8dcfa6727c95e92442467901a535a4b00d412099422e156c5",
             "build_args": {
               "CUDA_BASE_IMAGE": "docker.io/nvidia/cuda:12.1.1-runtime-ubuntu22.04"
             }
           },
           {
             "ref": "ghcr.io/labpod/cuda-composite:v1-cu129",
-            "definition_digest": "sha256:37b88abf49f52a9ca094fe72b02803f71d0a676071d6ea6ce607fa4dede40f6b",
+            "definition_digest": "sha256:672ceaf6ad75061b0117f54a9b12271c25f64b1bb2ac0f8e552062c5294edb2d",
             "build_args": {
               "CUDA_BASE_IMAGE": "docker.io/nvidia/cuda:12.9.1-runtime-ubuntu24.04"
             }

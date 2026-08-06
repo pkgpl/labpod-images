@@ -47,6 +47,22 @@ class NewRecipeContractTest(unittest.TestCase):
                 with self.subTest(image=name, marker=marker):
                     self.assertIn(marker, text)
 
+    def test_cuda_python_recipes_use_an_isolated_venv(self):
+        for name in (
+            "llm-huggingface",
+            "comfyui-stable-diffusion",
+            "cuda-composite",
+        ):
+            text = dockerfile(name)
+            with self.subTest(image=name):
+                self.assertIn("VIRTUAL_ENV=/opt/venv", text)
+                self.assertIn("PATH=/opt/venv/bin:${PATH}", text)
+                self.assertIn('python3 -m venv "$VIRTUAL_ENV"', text)
+                self.assertIn('"$VIRTUAL_ENV/bin/python" -m pip install --no-cache-dir uv', text)
+                self.assertIn('uv pip install --python "$VIRTUAL_ENV/bin/python"', text)
+                self.assertNotIn("uv pip install --system", text)
+                self.assertNotIn("--break-system-packages", text)
+
     def test_parallel_dev_contains_no_microsoft_browser_editor_artifact(self):
         text = dockerfile("parallel-dev")
         self.assertNotIn("update.code.visualstudio.com", text)
