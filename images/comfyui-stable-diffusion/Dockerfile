@@ -11,8 +11,13 @@ ARG TORCHAUDIO_VERSION=2.5.1
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         bash ca-certificates curl git python3 python3-pip python3-venv \
-    && rm -rf /var/lib/apt/lists/* \
-    && python3 -m pip install --no-cache-dir uv
+    && rm -rf /var/lib/apt/lists/*
+
+RUN python3 -m pip install --no-cache-dir uv \
+    && uv_path="$(python3 -c 'import shutil; print(shutil.which("uv") or "")')" \
+    && test -n "$uv_path" \
+    && if [ "$uv_path" != "/usr/local/bin/uv" ]; then ln -sf "$uv_path" /usr/local/bin/uv; fi \
+    && uv --version
 
 RUN git clone --filter=blob:none https://github.com/Comfy-Org/ComfyUI.git /opt/ComfyUI \
     && git -C /opt/ComfyUI checkout "${COMFYUI_REF}" \

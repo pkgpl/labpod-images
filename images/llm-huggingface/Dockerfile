@@ -13,14 +13,23 @@ RUN apt-get update \
         bash ca-certificates curl git git-lfs htop iproute2 jq less nano \
         openssh-client python3 python3-pip python3-venv rsync tmux tree ttyd \
         unzip vim wget \
+    && (apt-get install -y --no-install-recommends btop || true) \
     && git lfs install --system \
     && rm -rf /var/lib/apt/lists/*
 
 RUN python3 -m pip install --no-cache-dir uv \
-    && uv pip install --system --no-cache \
+    && uv_path="$(python3 -c 'import shutil; print(shutil.which("uv") or "")')" \
+    && test -n "$uv_path" \
+    && if [ "$uv_path" != "/usr/local/bin/uv" ]; then ln -sf "$uv_path" /usr/local/bin/uv; fi \
+    && uv --version
+
+# Use the matching PyTorch wheel index as the sole index so a newer PyPI
+# wheel cannot silently replace the CUDA-pinned build.
+RUN uv pip install --system --no-cache \
         --index-url "https://download.pytorch.org/whl/${TORCH_CUDA}" \
-        "torch==${TORCH_VERSION}" \
-    && uv pip install --system --no-cache \
+        "torch==${TORCH_VERSION}"
+
+RUN uv pip install --system --no-cache \
         jupyterlab ipywidgets jupyter-resource-usage tensorboard transformers \
         datasets accelerate peft trl bitsandbytes sentencepiece safetensors \
         huggingface_hub hf-transfer einops evaluate numpy pandas

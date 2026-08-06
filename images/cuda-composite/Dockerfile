@@ -10,9 +10,16 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         bash ca-certificates curl git htop iproute2 jq less nano openssh-client \
         python3 python3-pip python3-venv rsync tmux tree ttyd unzip vim wget \
-    && rm -rf /var/lib/apt/lists/* \
-    && python3 -m pip install --no-cache-dir uv \
-    && uv pip install --system --no-cache \
+    && (apt-get install -y --no-install-recommends btop || true) \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN python3 -m pip install --no-cache-dir uv \
+    && uv_path="$(python3 -c 'import shutil; print(shutil.which("uv") or "")')" \
+    && test -n "$uv_path" \
+    && if [ "$uv_path" != "/usr/local/bin/uv" ]; then ln -sf "$uv_path" /usr/local/bin/uv; fi \
+    && uv --version
+
+RUN uv pip install --system --no-cache \
         jupyterlab ipywidgets jupyter-resource-usage tensorboard mlflow aim \
         numpy scipy scikit-learn pandas matplotlib seaborn transformers \
         datasets accelerate peft safetensors streamlit gradio

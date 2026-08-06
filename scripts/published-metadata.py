@@ -39,7 +39,11 @@ def published_metadata():
             ref = f"ghcr.io/labpod/{name}:{item['tag']}"
             definition_digest = DIGEST.build_input_digest(context, dockerfile, args)
             generated.append(
-                {"ref": ref, "definition_digest": definition_digest}
+                {
+                    "ref": ref,
+                    "definition_digest": definition_digest,
+                    "build_args": args,
+                }
             )
             variant_build_args[item["tag"]] = args
 

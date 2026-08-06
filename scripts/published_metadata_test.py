@@ -32,6 +32,11 @@ class PublishedMetadataTest(unittest.TestCase):
                 {item["ref"].rsplit(":", 1)[1] for item in published["variants"]},
                 {"v1-cu121", "v1-cu129"},
             )
+            for variant in published["variants"]:
+                tag = variant["ref"].rsplit(":", 1)[1]
+                self.assertEqual(
+                    variant["build_args"], by_name[name]["variant_build_args"][tag]
+                )
 
 
 if __name__ == "__main__":

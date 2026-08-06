@@ -1,0 +1,57 @@
+import unittest
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parent.parent
+
+
+def dockerfile(name):
+    return (ROOT / "images" / name / "Dockerfile").read_text()
+
+
+class NewRecipeContractTest(unittest.TestCase):
+    def test_r_ml_preserves_build_verified_runtime_contract(self):
+        text = dockerfile("r-ml-jupyterlab")
+        for marker in (
+            "max(1L, parallel::detectCores(), na.rm = TRUE)",
+            "library(p, character.only = TRUE)",
+            "uv pip install --python",
+            "kernelspec list --json",
+            'reticulate::py_config()',
+            'reticulate::import("numpy")',
+            "command -v jupyter",
+            "command -v tensorboard",
+            "ttyd",
+        ):
+            self.assertIn(marker, text)
+
+    def test_rstudio_installs_and_load_checks_advertised_packages(self):
+        text = dockerfile("rstudio-server")
+        for package in ("tidyverse", "data.table", "reticulate"):
+            self.assertGreaterEqual(text.count(f'"{package}"'), 2)
+        self.assertIn("library(p, character.only = TRUE)", text)
+        self.assertIn("labpod-rstudio", text)
+
+    def test_other_published_recipes_keep_existing_hardening(self):
+        expected = {
+            "miniforge-jupyterlab": ("conda clean -afy", "userdel ubuntu", "curl"),
+            "uv-jupyterlab": ("UV_SYSTEM_PYTHON=1", "uv pip install", "curl"),
+            "llm-huggingface": ("uv_path=", "--index-url", "git lfs install --system"),
+            "comfyui-stable-diffusion": ("uv_path=", "COMFYUI_REF", "folder_paths"),
+            "cuda-composite": ("uv_path=", "btop || true", "sha256sum -c"),
+            "parallel-dev": ("cuda-nsight-systems", "mpicc", "code-server"),
+        }
+        for name, markers in expected.items():
+            text = dockerfile(name)
+            for marker in markers:
+                with self.subTest(image=name, marker=marker):
+                    self.assertIn(marker, text)
+
+    def test_parallel_dev_contains_no_microsoft_browser_editor_artifact(self):
+        text = dockerfile("parallel-dev")
+        self.assertNotIn("update.code.visualstudio.com", text)
+        self.assertNotIn("code serve-web", text)
+
+
+if __name__ == "__main__":
+    unittest.main()

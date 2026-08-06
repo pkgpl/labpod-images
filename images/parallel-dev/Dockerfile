@@ -20,8 +20,15 @@ RUN NSIGHT_VER="$(echo "${CUDA_VERSION}" | cut -d. -f1,2 | tr '.' '-')" \
         "cuda-nsight-systems-${NSIGHT_VER}" "cuda-nsight-compute-${NSIGHT_VER}" \
     && rm -rf /var/lib/apt/lists/*
 
-# code-server is MIT licensed and redistributable. Microsoft `code serve-web`
-# intentionally stays out of published images and remains a local/EULA path.
+RUN command -v nvcc \
+    && command -v cuda-gdb \
+    && command -v mpicc \
+    && command -v mpirun \
+    && command -v nsys \
+    && command -v ncu
+
+# code-server is MIT licensed and redistributable. Microsoft's proprietary
+# browser-editor artifact intentionally remains a local/EULA-only path.
 RUN arch="$(dpkg --print-architecture)" \
     && case "$arch" in \
         amd64) expected="$CODE_SERVER_SHA256_AMD64" ;; \

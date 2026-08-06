@@ -84,7 +84,9 @@ server can recompute it.
 [`published-images.json`](published-images.json) is the generated,
 machine-readable handoff for LabPod bundles: it records each canonical
 Dockerfile, default and per-variant build arguments, immutable references, and
-definition digests. Regenerate or verify it with
+definition digests. Each non-default published variant embeds its own build
+arguments so an offline server can recompute that variant rather than
+accidentally using the default channel's arguments. Regenerate or verify it with
 `scripts/published-metadata.py --write` or `--check`.
 
 Candidate and weekly rebuild tags are retained as an audit trail for the bytes

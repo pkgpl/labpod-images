@@ -137,13 +137,15 @@ case "$image_kind" in
     ;;
   r-ml-jupyterlab)
     "$engine" exec "$container_id" Rscript -e \
-      'stopifnot(requireNamespace("tidymodels"), requireNamespace("IRkernel"))'
+      'pkgs <- c("tidyverse", "tidymodels", "caret", "xgboost", "randomForest", "glmnet", "data.table", "reticulate", "IRkernel"); stopifnot(all(vapply(pkgs, function(p) { library(p, character.only=TRUE); TRUE }, logical(1))))'
     "$engine" exec "$container_id" python -c 'import jupyterlab, numpy'
     probe_http jupyter 8888 /lab \
       "jupyter lab --allow-root --no-browser --ip=127.0.0.1 --port=8888 --ServerApp.token='' --ServerApp.password=''"
     ;;
   rstudio-server)
     "$engine" exec "$container_id" R --version
+    "$engine" exec "$container_id" Rscript -e \
+      'pkgs <- c("tidyverse", "data.table", "reticulate"); stopifnot(all(vapply(pkgs, function(p) { library(p, character.only=TRUE); TRUE }, logical(1))))'
     probe_http rstudio 8787 / \
       "labpod-rstudio --www-port=8787"
     ;;
