@@ -63,6 +63,10 @@ class NewRecipeContractTest(unittest.TestCase):
                 self.assertNotIn("uv pip install --system", text)
                 self.assertNotIn("--break-system-packages", text)
 
+    def test_comfyui_launcher_creates_its_required_runtime_tree(self):
+        text = dockerfile("comfyui-stable-diffusion")
+        self.assertIn("mkdir -p /work/comfyui/custom_nodes", text)
+
     def test_parallel_dev_contains_no_microsoft_browser_editor_artifact(self):
         text = dockerfile("parallel-dev")
         self.assertNotIn("update.code.visualstudio.com", text)

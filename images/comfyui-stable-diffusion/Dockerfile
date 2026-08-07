@@ -35,7 +35,7 @@ RUN git clone --filter=blob:none https://github.com/Comfy-Org/ComfyUI.git /opt/C
 RUN printf '%s\n' \
         '#!/usr/bin/env bash' \
         'set -euo pipefail' \
-        'mkdir -p /work/comfyui' \
+        'mkdir -p /work/comfyui/custom_nodes' \
         'cd /opt/ComfyUI' \
         'exec python3 main.py --base-directory /work/comfyui "$@"' \
         > /usr/local/bin/comfyui \
