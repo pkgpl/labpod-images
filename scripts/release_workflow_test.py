@@ -73,6 +73,7 @@ class ReleaseWorkflowTest(unittest.TestCase):
             "fromJSON(needs.changes.outputs.package_matrix)", self.workflow
         )
         self.assertIn("scripts/release-matrix.py --paths-file", self.workflow)
+        self.assertIn("scripts/release-matrix.py --all-if-paths-file", self.workflow)
         self.assertIn("scripts/release-matrix.py --all", self.workflow)
         for old_name in (
             "build-code-server-image.yml",

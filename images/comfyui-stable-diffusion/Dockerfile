@@ -28,9 +28,9 @@ RUN git clone --filter=blob:none https://github.com/Comfy-Org/ComfyUI.git /opt/C
         "torch==${TORCH_VERSION}" \
         "torchvision==${TORCHVISION_VERSION}" \
         "torchaudio==${TORCHAUDIO_VERSION}" \
-    && uv pip install --python "$VIRTUAL_ENV/bin/python" --no-cache -r /opt/ComfyUI/requirements.txt \
+    && uv pip install --python "$VIRTUAL_ENV/bin/python" --no-cache -r /opt/ComfyUI/requirements.txt requests \
     && cd /opt/ComfyUI \
-    && python3 -c 'import torch; import folder_paths'
+    && python3 -c 'import app.frontend_management; import folder_paths; import requests; import torch'
 
 RUN printf '%s\n' \
         '#!/usr/bin/env bash' \

@@ -67,6 +67,11 @@ class NewRecipeContractTest(unittest.TestCase):
         text = dockerfile("comfyui-stable-diffusion")
         self.assertIn("mkdir -p /work/comfyui/custom_nodes", text)
 
+    def test_comfyui_declares_and_import_checks_frontend_requests(self):
+        text = dockerfile("comfyui-stable-diffusion")
+        self.assertIn("/opt/ComfyUI/requirements.txt requests", text)
+        self.assertIn("import app.frontend_management", text)
+
     def test_parallel_dev_contains_no_microsoft_browser_editor_artifact(self):
         text = dockerfile("parallel-dev")
         self.assertNotIn("update.code.visualstudio.com", text)

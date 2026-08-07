@@ -54,6 +54,18 @@ class ReleaseMatrixTest(unittest.TestCase):
             self.package_names(scope), ["code-server", "tensorflow-jupyter"]
         )
 
+    def test_main_release_change_expands_to_the_atomic_full_catalog(self):
+        scope = MODULE.release_scope(
+            ["images/code-server/Dockerfile"], force_all_if_changed=True
+        )
+        self.assertEqual(len(self.names_and_tags(scope)), 26)
+        self.assertEqual(len(self.package_names(scope)), 13)
+
+        docs_only = MODULE.release_scope(
+            ["images/code-server/README.md"], force_all_if_changed=True
+        )
+        self.assertEqual(docs_only["release_required"], "false")
+
     def test_docs_and_test_changes_select_nothing(self):
         scope = MODULE.release_scope(
             [

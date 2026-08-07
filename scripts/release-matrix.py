@@ -170,9 +170,13 @@ def select_variant_names(paths, variants, force_all=False):
     return [name for name in ordered_names if name in selected]
 
 
-def release_scope(paths=(), force_all=False, catalog=CATALOG):
+def release_scope(
+    paths=(), force_all=False, force_all_if_changed=False, catalog=CATALOG
+):
     variants = load_variants(catalog)
     names = select_variant_names(paths, variants, force_all=force_all)
+    if force_all_if_changed and names:
+        names = select_variant_names((), variants, force_all=True)
     selected = [variant for variant in variants if variant["name"] in names]
     variant_matrix = {"include": [workflow_variant(item) for item in selected]}
     package_matrix = {
@@ -197,10 +201,20 @@ def main():
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--all", action="store_true", help="select every variant")
     group.add_argument("--paths-file", type=Path, help="newline-delimited changed paths")
+    group.add_argument(
+        "--all-if-paths-file",
+        type=Path,
+        help="select every variant when the changed paths affect a release",
+    )
     args = parser.parse_args()
 
-    paths = () if args.all else args.paths_file.read_text().splitlines()
-    scope = release_scope(paths, force_all=args.all)
+    paths_file = args.paths_file or args.all_if_paths_file
+    paths = () if args.all else paths_file.read_text().splitlines()
+    scope = release_scope(
+        paths,
+        force_all=args.all,
+        force_all_if_changed=args.all_if_paths_file is not None,
+    )
     print(f"release_required={scope['release_required']}")
     print("variant_matrix=" + json.dumps(scope["variant_matrix"], separators=(",", ":")))
     print("package_matrix=" + json.dumps(scope["package_matrix"], separators=(",", ":")))
