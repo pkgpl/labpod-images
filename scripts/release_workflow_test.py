@@ -122,7 +122,11 @@ class ReleaseWorkflowTest(unittest.TestCase):
         self.assertIn("name: package access (${{ matrix.name }})", self.workflow)
         self.assertIn("needs: [changes, package-access]", self.validate_section)
         self.assertIn("needs.package-access.result == 'success'", self.validate_section)
-        self.assertIn('docker buildx build --file - --tag "$PROBE_REF" --push -', self.workflow)
+        self.assertIn('docker buildx build --file - --tag "$PROBE_REF" --push .', self.workflow)
+        self.assertNotIn(
+            'docker buildx build --file - --tag "$PROBE_REF" --push -',
+            self.workflow,
+        )
 
     def test_package_access_proves_anonymous_pull_before_expensive_builds(self):
         package_access = self.workflow.split("\n  package-access:\n", 1)[1].split(
