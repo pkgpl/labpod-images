@@ -55,6 +55,12 @@ without publishing them; the Dockerfiles run import and command checks as part
 of those builds. Changes to the shared release catalog, workflow, or smoke
 contract validate the complete matrix.
 
+Every release-affecting push to `main` builds the complete catalog. All refs
+share one immutable `vN` prefix and one generated metadata handoff, so publishing
+only a subset could leave that catalog internally inconsistent after a failed
+or interrupted release. Affected-only selection remains a pull-request
+optimization.
+
 Changes on `main` first publish commit-specific `candidate-<sha>-<tag>` tags for
 the affected variants. CI then pulls those candidates anonymously, checks the
 runtime image contract as an unprivileged workspace identity with writable

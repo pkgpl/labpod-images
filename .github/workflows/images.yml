@@ -57,7 +57,11 @@ jobs:
           fi
 
           git diff --name-only "$base_sha" "$GITHUB_SHA" > /tmp/changed-files
-          python3 scripts/release-matrix.py --paths-file /tmp/changed-files >>"$GITHUB_OUTPUT"
+          if [[ "$EVENT_NAME" == pull_request ]]; then
+            python3 scripts/release-matrix.py --paths-file /tmp/changed-files >>"$GITHUB_OUTPUT"
+          else
+            python3 scripts/release-matrix.py --all-if-paths-file /tmp/changed-files >>"$GITHUB_OUTPUT"
+          fi
 
   package-access:
     name: package access (${{ matrix.name }})
