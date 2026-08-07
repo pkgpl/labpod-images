@@ -184,6 +184,20 @@ class ReleaseWorkflowTest(unittest.TestCase):
         self.assertIn("REBUILD_REF", self.workflow)
         self.assertIn("rebuild-${REBUILD_DATE}-${RUN_ID}-${RUN_ATTEMPT}", self.workflow)
 
+    def test_manual_stable_promotion_is_an_explicit_recovery_mode(self):
+        self.assertIn("promote_stable:", self.workflow)
+        self.assertIn("type: boolean", self.workflow)
+        self.assertIn("default: false", self.workflow)
+        self.assertIn("PROMOTE_STABLE: ${{ inputs.promote_stable }}", self.workflow)
+        self.assertIn(
+            "github.event_name == 'workflow_dispatch' && inputs.promote_stable",
+            self.promote_section,
+        )
+        self.assertIn(
+            "github.event_name == 'workflow_dispatch' && inputs.promote_stable",
+            self.workflow.split("\n  gate:\n", 1)[1],
+        )
+
     def test_all_new_image_sources_have_smoke_contracts(self):
         matrix_names = {item["name"] for item in self.catalog["variants"]}
         self.assertTrue(EXPECTED_NEW_IMAGES.issubset(matrix_names))
