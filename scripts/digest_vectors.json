@@ -1,0 +1,112 @@
+[
+  {
+    "build_args": {},
+    "context": {},
+    "digest": "sha256:6e1a7611ac684e147c98c1bddfc964fb1b69a79f3630ddb8ea3c6944217222a4",
+    "dockerfile": "FROM ubuntu\n",
+    "name": "untagged-from"
+  },
+  {
+    "build_args": {},
+    "context": {
+      "a.txt": "hello\n"
+    },
+    "digest": "sha256:9173118628edc9327ef6aff264f37584832b3ad941587f5f620cc7d36fd19f0b",
+    "dockerfile": "FROM scratch\nCOPY a.txt /a\n",
+    "name": "scratch"
+  },
+  {
+    "build_args": {},
+    "context": {},
+    "digest": "sha256:d93636242f786d200663faa9e8600121efb6e329c606deaf66243ee2e15659f7",
+    "dockerfile": "FROM index.docker.io/library/ubuntu:24.04\n",
+    "name": "index-docker-io"
+  },
+  {
+    "build_args": {},
+    "context": {},
+    "digest": "sha256:af90a0bd052261a70fadf6b6e727de186f857032342c3d9a0b2010e3427ec2ba",
+    "dockerfile": "FROM ghcr.io/LabPod/Scipy-Jupyter:v1-py312\n",
+    "name": "mixed-case-repo"
+  },
+  {
+    "build_args": {},
+    "context": {},
+    "digest": "sha256:a7e3d828df19f40c92423c942f05fd527d2a48997a65c5ea7618b5dea4a90185",
+    "dockerfile": "ARG BASE=alpine:3.20\nFROM busybox:1 AS builder\nARG BASE=ubuntu:24.04\nFROM ${BASE}\n",
+    "name": "arg-after-first-from-is-ignored"
+  },
+  {
+    "build_args": {},
+    "context": {},
+    "digest": "sha256:c12eea1d35798c08c800031a159eaa2e68e11d5507cd9f1ddc082c3ec32df7b5",
+    "dockerfile": "ARG REG=ghcr.io\nARG BASE=${REG}/labpod/scipy-jupyter:v1-py312\nFROM ${BASE}\n",
+    "name": "nested-arg-expansion"
+  },
+  {
+    "build_args": {},
+    "context": {},
+    "digest": "sha256:537492399a5cbae6d37dd2f8e63e16f99586094f2de3592ee5d88c2567b0c77b",
+    "dockerfile": "FROM ubuntu:24.04 AS build\nRUN true\nFROM build\n",
+    "name": "stage-alias-skipped"
+  },
+  {
+    "build_args": {},
+    "context": {},
+    "digest": "sha256:d8af152d453204e419857a06be0c546258b8c3da82a0e25bd04eb389ce157be6",
+    "dockerfile": "# leading comment\nARG BASE=ghcr.io/labpod/scipy-jupyter:v1-py312\n\nFROM \\\n    ${BASE}\nRUN apt-get update \\\n \u0026\u0026 apt-get install -y curl\n",
+    "name": "continuation-and-comments"
+  },
+  {
+    "build_args": {},
+    "context": {},
+    "digest": "sha256:69c1aead98878d6f92aa8c2c4c85dd8e94c62da2971e4e70946111b81319a24e",
+    "dockerfile": "FROM --platform=linux/amd64 alpine:3.20\n",
+    "name": "platform-flag"
+  },
+  {
+    "build_args": {},
+    "context": {},
+    "digest": "sha256:695e69ee0a98a3fe1017153fb82711188b4ffb476160f34b182f2fb9dae6c55a",
+    "dockerfile": "FROM localhost:5000/team/base\n",
+    "name": "registry-with-port"
+  },
+  {
+    "build_args": {},
+    "context": {},
+    "digest": "sha256:0f00f2b07029e402232b0a94766ee5c2ed64c8b2c8bf0ddab881534172199dc3",
+    "dockerfile": "FROM ubuntu@sha256:0000000000000000000000000000000000000000000000000000000000000000\n",
+    "name": "digest-pinned-base"
+  },
+  {
+    "build_args": {
+      "BASE": "ghcr.io/labpod/pytorch-jupyter:v1-cu129"
+    },
+    "context": {
+      "requirements.txt": "numpy\n"
+    },
+    "digest": "sha256:c97c59692967eb4347c4ec9d4f963dd0877210a4406bdaa3b917880c02d63c79",
+    "dockerfile": "ARG BASE=ghcr.io/labpod/pytorch-jupyter:v1-cu126\nFROM ${BASE}\n",
+    "name": "build-arg-override"
+  },
+  {
+    "build_args": {},
+    "context": {
+      "a.txt": "a\n",
+      "b/a.txt": "ba\n",
+      "b/z.txt": "z\n"
+    },
+    "digest": "sha256:e6e2460b16e428146deffcf71d58b80f9b04660f849a5681dd46eace9ee9888c",
+    "dockerfile": "FROM alpine:3.20\nCOPY . /src\n",
+    "name": "nested-context-paths-sorted"
+  },
+  {
+    "build_args": {
+      "UNUSED": "value"
+    },
+    "context": {},
+    "digest": "sha256:e1f2341e0cf3d206c01f05f27712312c9bb2ca9b144ca69da58ea95ef6c32ffa",
+    "dockerfile": "FROM alpine:3.20\n",
+    "name": "unused-build-arg-still-hashed"
+  }
+]
