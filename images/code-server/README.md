@@ -8,7 +8,8 @@ LabPod selects a free image-local UID/GID at workspace start and maps it to the
 workspace owner's Linux account, so base-image accounts do not need to be
 removed or renumbered.
 
-The workflow publishes Linux `amd64` to `ghcr.io/labpod/code-server:latest`.
+The workflow publishes Linux `amd64` to the immutable
+`ghcr.io/labpod/code-server:v1` release tag.
 The code-server `.deb` is version-pinned and checksum-verified in the
 Dockerfile. `scripts/bump-image-pins.py` updates that pin together with the
 other LabPod images that bundle code-server.

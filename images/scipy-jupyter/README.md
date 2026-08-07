@@ -11,7 +11,7 @@ The GitHub Actions workflow publishes Linux `amd64` images to
 
 | Image tag | Base | Python | Stack |
 | --- | --- | --- | --- |
-| `py312` | Ubuntu 24.04 | 3.12 | JupyterLab, ipywidgets, jupyter-resource-usage, NumPy, SciPy, pandas, scikit-learn, matplotlib, seaborn, bokeh |
+| `v1-py312` | Ubuntu 24.04 | 3.12 | JupyterLab, ipywidgets, jupyter-resource-usage, NumPy, SciPy, pandas, scikit-learn, matplotlib, seaborn, bokeh |
 
 This is a **CPU-only** image — no CUDA base and no GPU stack — so there is no
 host-driver requirement. It is the right pick for data wrangling, statistics,
@@ -26,8 +26,8 @@ training workloads on the shared workstation.
   `pip`, and `jupyter` use the image environment without modifying Ubuntu's
   system Python.
 - The image is published only for `linux/amd64`.
-- `jupyterlab` and the scientific stack intentionally float between scheduled
-  rebuilds; the Python base line (`py312`) is pinned by the tag.
+- Release tags are immutable. Unique weekly rebuild tags expose upstream
+  dependency drift without changing an installed lab's environment.
 
 ## Local build
 

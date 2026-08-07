@@ -3,6 +3,7 @@
 
 import argparse
 import json
+import re
 from pathlib import Path, PurePosixPath
 
 
@@ -11,16 +12,50 @@ CATALOG = ROOT / ".github" / "image-matrix.json"
 FULL_MATRIX_PATHS = {
     ".github/image-matrix.json",
     ".github/workflows/images.yml",
+    "scripts/build-input-digest.py",
+    "scripts/published-metadata.py",
     "scripts/release-matrix.py",
     "scripts/smoke-image.sh",
 }
-PACKAGE_CURRENT_TAG = {
-    "code-server": "latest",
+PACKAGE_DEFAULT_SUFFIX = {
+    "code-server": "",
     "pytorch-jupyter": "cu126",
     "tensorflow-jupyter": "cu125",
     "scipy-jupyter": "py312",
     "pytorch-demo": "cpu",
+    "miniforge-jupyterlab": "cpu",
+    "uv-jupyterlab": "py312",
+    "r-ml-jupyterlab": "cpu",
+    "rstudio-server": "cpu",
+    "llm-huggingface": "cu126",
+    "comfyui-stable-diffusion": "cu126",
+    "cuda-composite": "cu126",
+    "parallel-dev": "cu126",
 }
+RELEASE_TAG_RE = re.compile(r"^(v\d+)(?:-.+)?$")
+
+
+def release_prefix(variants):
+    prefixes = set()
+    for variant in variants:
+        match = RELEASE_TAG_RE.fullmatch(variant["tag"])
+        if not match:
+            raise ValueError(f"invalid immutable release tag: {variant['tag']}")
+        prefixes.add(match.group(1))
+    if len(prefixes) != 1:
+        raise ValueError("image matrix must use one shared vN release prefix")
+    return prefixes.pop()
+
+
+def package_current_tag(name, variants):
+    if name not in PACKAGE_DEFAULT_SUFFIX:
+        raise ValueError(f"image matrix lacks default-tag metadata for: {name}")
+    prefix = release_prefix(variants)
+    suffix = PACKAGE_DEFAULT_SUFFIX[name]
+    tag = prefix if not suffix else f"{prefix}-{suffix}"
+    if not any(item["name"] == name and item["tag"] == tag for item in variants):
+        raise ValueError(f"image matrix lacks default variant {name}:{tag}")
+    return tag
 
 
 def load_variants(catalog=CATALOG):
@@ -28,12 +63,13 @@ def load_variants(catalog=CATALOG):
     keys = [(variant["name"], variant["tag"]) for variant in variants]
     if len(keys) != len(set(keys)):
         raise ValueError("image matrix contains duplicate name/tag variants")
-    unknown_packages = {name for name, _ in keys} - PACKAGE_CURRENT_TAG.keys()
+    unknown_packages = {name for name, _ in keys} - PACKAGE_DEFAULT_SUFFIX.keys()
     if unknown_packages:
         raise ValueError(
-            "image matrix lacks package-access metadata for: "
+            "image matrix lacks default-tag metadata for: "
             + ", ".join(sorted(unknown_packages))
         )
+    release_prefix(variants)
     return variants
 
 
@@ -58,11 +94,39 @@ def build_args(variant):
         )
     if name == "scipy-jupyter":
         return f"BASE_IMAGE={variant['base']}"
+    if name == "miniforge-jupyterlab":
+        return f"BASE_IMAGE={variant['base']}"
+    if name == "uv-jupyterlab":
+        return f"PYTHON_BASE={variant['base']}"
+    if name in {"r-ml-jupyterlab", "rstudio-server"}:
+        return f"BASE_IMAGE={variant['base']}"
+    if name == "llm-huggingface":
+        return "\n".join(
+            (
+                f"CUDA_BASE_IMAGE={variant['base']}",
+                f"TORCH_CUDA={variant['torch_cuda']}",
+                f"TORCH_VERSION={variant['torch']}",
+            )
+        )
+    if name == "comfyui-stable-diffusion":
+        return "\n".join(
+            (
+                f"CUDA_BASE_IMAGE={variant['base']}",
+                f"TORCH_CUDA={variant['torch_cuda']}",
+                f"TORCH_VERSION={variant['torch']}",
+                f"TORCHVISION_VERSION={variant['torchvision']}",
+                f"TORCHAUDIO_VERSION={variant['torchaudio']}",
+                f"COMFYUI_REF={variant['comfyui_ref']}",
+            )
+        )
+    if name in {"cuda-composite", "parallel-dev"}:
+        return f"CUDA_BASE_IMAGE={variant['base']}"
     return ""
 
 
 def workflow_variant(variant):
     name = variant["name"]
+    args = build_args(variant)
     return {
         "name": name,
         "repository": f"ghcr.io/labpod/{name}",
@@ -70,7 +134,8 @@ def workflow_variant(variant):
         "context": f"images/{name}",
         "dockerfile": f"images/{name}/Dockerfile",
         "kind": name,
-        "build_args": build_args(variant),
+        "build_args": args,
+        "build_input_args": args,
     }
 
 
@@ -115,7 +180,7 @@ def release_scope(paths=(), force_all=False, catalog=CATALOG):
             {
                 "name": name,
                 "repository": f"ghcr.io/labpod/{name}",
-                "current_tag": PACKAGE_CURRENT_TAG[name],
+                "current_tag": package_current_tag(name, variants),
             }
             for name in names
         ]

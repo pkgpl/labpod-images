@@ -27,6 +27,14 @@ updates:
       - /images/scipy-jupyter
       - /images/pytorch-demo
       - /images/code-server
+      - /images/miniforge-jupyterlab
+      - /images/uv-jupyterlab
+      - /images/r-ml-jupyterlab
+      - /images/rstudio-server
+      - /images/llm-huggingface
+      - /images/comfyui-stable-diffusion
+      - /images/cuda-composite
+      - /images/parallel-dev
     schedule:
       interval: weekly
       day: monday

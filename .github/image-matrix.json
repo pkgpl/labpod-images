@@ -2,11 +2,11 @@
   "variants": [
     {
       "name": "code-server",
-      "tag": "latest"
+      "tag": "v1"
     },
     {
       "name": "pytorch-jupyter",
-      "tag": "cu121",
+      "tag": "v1-cu121",
       "base": "docker.io/nvidia/cuda:12.1.1-runtime-ubuntu22.04",
       "torch_cuda": "cu121",
       "torch": "2.5.1",
@@ -14,7 +14,7 @@
     },
     {
       "name": "pytorch-jupyter",
-      "tag": "cu126",
+      "tag": "v1-cu126",
       "base": "docker.io/nvidia/cuda:12.6.3-runtime-ubuntu24.04",
       "torch_cuda": "cu126",
       "torch": "2.8.0",
@@ -22,7 +22,7 @@
     },
     {
       "name": "pytorch-jupyter",
-      "tag": "cu129",
+      "tag": "v1-cu129",
       "base": "docker.io/nvidia/cuda:12.9.1-runtime-ubuntu24.04",
       "torch_cuda": "cu129",
       "torch": "2.8.0",
@@ -30,19 +30,19 @@
     },
     {
       "name": "tensorflow-jupyter",
-      "tag": "cu125",
+      "tag": "v1-cu125",
       "base": "docker.io/nvidia/cuda:12.5.1-runtime-ubuntu24.04",
       "tf_version": "2.21.0",
       "cudnn_version": "9.10.2.21"
     },
     {
       "name": "scipy-jupyter",
-      "tag": "py312",
+      "tag": "v1-py312",
       "base": "docker.io/ubuntu:24.04"
     },
     {
       "name": "pytorch-demo",
-      "tag": "cpu",
+      "tag": "v1-cpu",
       "base": "docker.io/ubuntu:24.04",
       "torch_cuda": "cpu",
       "torch": "2.8.0",
@@ -50,7 +50,7 @@
     },
     {
       "name": "pytorch-demo",
-      "tag": "cu121",
+      "tag": "v1-cu121",
       "base": "docker.io/nvidia/cuda:12.1.1-runtime-ubuntu22.04",
       "torch_cuda": "cu121",
       "torch": "2.5.1",
@@ -58,7 +58,7 @@
     },
     {
       "name": "pytorch-demo",
-      "tag": "cu126",
+      "tag": "v1-cu126",
       "base": "docker.io/nvidia/cuda:12.6.3-runtime-ubuntu24.04",
       "torch_cuda": "cu126",
       "torch": "2.8.0",
@@ -66,11 +66,112 @@
     },
     {
       "name": "pytorch-demo",
-      "tag": "cu129",
+      "tag": "v1-cu129",
       "base": "docker.io/nvidia/cuda:12.9.1-runtime-ubuntu24.04",
       "torch_cuda": "cu129",
       "torch": "2.8.0",
       "torchvision": "0.23.0"
+    },
+    {
+      "name": "miniforge-jupyterlab",
+      "tag": "v1-cpu",
+      "base": "docker.io/condaforge/miniforge3:25.3.0-3"
+    },
+    {
+      "name": "uv-jupyterlab",
+      "tag": "v1-py312",
+      "base": "ghcr.io/astral-sh/uv:python3.12-bookworm-slim"
+    },
+    {
+      "name": "r-ml-jupyterlab",
+      "tag": "v1-cpu",
+      "base": "docker.io/rocker/r-ver:4.4.1"
+    },
+    {
+      "name": "rstudio-server",
+      "tag": "v1-cpu",
+      "base": "docker.io/rocker/rstudio:4.4.1"
+    },
+    {
+      "name": "llm-huggingface",
+      "tag": "v1-cu121",
+      "base": "docker.io/nvidia/cuda:12.1.1-runtime-ubuntu22.04",
+      "torch_cuda": "cu121",
+      "torch": "2.5.1"
+    },
+    {
+      "name": "llm-huggingface",
+      "tag": "v1-cu126",
+      "base": "docker.io/nvidia/cuda:12.6.3-runtime-ubuntu24.04",
+      "torch_cuda": "cu126",
+      "torch": "2.8.0"
+    },
+    {
+      "name": "llm-huggingface",
+      "tag": "v1-cu129",
+      "base": "docker.io/nvidia/cuda:12.9.1-runtime-ubuntu24.04",
+      "torch_cuda": "cu129",
+      "torch": "2.8.0"
+    },
+    {
+      "name": "comfyui-stable-diffusion",
+      "tag": "v1-cu121",
+      "base": "docker.io/nvidia/cuda:12.1.1-runtime-ubuntu22.04",
+      "torch_cuda": "cu121",
+      "torch": "2.5.1",
+      "torchvision": "0.20.1",
+      "torchaudio": "2.5.1",
+      "comfyui_ref": "v0.3.51"
+    },
+    {
+      "name": "comfyui-stable-diffusion",
+      "tag": "v1-cu126",
+      "base": "docker.io/nvidia/cuda:12.6.3-runtime-ubuntu24.04",
+      "torch_cuda": "cu126",
+      "torch": "2.8.0",
+      "torchvision": "0.23.0",
+      "torchaudio": "2.8.0",
+      "comfyui_ref": "v0.3.51"
+    },
+    {
+      "name": "comfyui-stable-diffusion",
+      "tag": "v1-cu129",
+      "base": "docker.io/nvidia/cuda:12.9.1-runtime-ubuntu24.04",
+      "torch_cuda": "cu129",
+      "torch": "2.8.0",
+      "torchvision": "0.23.0",
+      "torchaudio": "2.8.0",
+      "comfyui_ref": "v0.3.51"
+    },
+    {
+      "name": "cuda-composite",
+      "tag": "v1-cu121",
+      "base": "docker.io/nvidia/cuda:12.1.1-runtime-ubuntu22.04"
+    },
+    {
+      "name": "cuda-composite",
+      "tag": "v1-cu126",
+      "base": "docker.io/nvidia/cuda:12.6.3-runtime-ubuntu24.04"
+    },
+    {
+      "name": "cuda-composite",
+      "tag": "v1-cu129",
+      "base": "docker.io/nvidia/cuda:12.9.1-runtime-ubuntu24.04"
+    },
+    {
+      "name": "parallel-dev",
+      "tag": "v1-cu121",
+      "base": "docker.io/nvidia/cuda:12.1.1-devel-ubuntu22.04"
+    },
+    {
+      "name": "parallel-dev",
+      "tag": "v1-cu126",
+      "base": "docker.io/nvidia/cuda:12.6.3-devel-ubuntu24.04"
+    },
+    {
+      "name": "parallel-dev",
+      "tag": "v1-cu129",
+      "base": "docker.io/nvidia/cuda:12.9.1-devel-ubuntu24.04"
     }
   ]
 }
