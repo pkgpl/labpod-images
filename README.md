@@ -64,6 +64,10 @@ matrix passes. CI pulls and smokes every promoted stable tag again without
 registry credentials. The weekly schedule and manual dispatch run the complete
 matrix to catch base-image and floating-dependency drift.
 
+Promotion is retry-safe after a partial matrix failure: an existing stable tag
+is accepted only when it already resolves to the exact validated candidate
+manifest. CI still refuses to move a stable tag that points at different bytes.
+
 The release workflow stamps `org.opencontainers.image.source` on every image so
 GHCR can associate every organization-scoped package with this repository.
 
@@ -101,10 +105,17 @@ this repository. Existing LabPod installations continue to use the same
 Maintainers must grant this repository Actions access to each existing GHCR
 package, connect each package to this source repository, and keep package
 visibility **Public** so LabPod hosts can pull without registry credentials.
+The package-access job proves both authenticated write access and an anonymous
+pull before any expensive image builds start. GitHub creates a new container
+package as private, so the first run for a new package intentionally stops after
+publishing its small `access-<sha>` probe. An organization owner must make that
+package Public and rerun the workflow; only then can candidate builds proceed.
 
 Version pins embedded in the build matrix are handled by the `bump-image-pins`
 workflow. It is optional and no-ops unless the repository secret
 `BUMP_PIN_TOKEN` has contents and pull-request write access to this repository.
+The bump script advances the shared immutable `vN` prefix and regenerates
+`published-images.json` in the same pull request.
 Dependabot continues to maintain action and base-image pins without that
 secret.
 

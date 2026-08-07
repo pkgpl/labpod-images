@@ -92,7 +92,16 @@ class ReleaseWorkflowTest(unittest.TestCase):
 
     def test_promotion_compares_raw_manifest_digests(self):
         self.assertEqual(
-            self.promote_section.count("docker buildx imagetools inspect --raw"), 2
+            self.promote_section.count(
+                'docker buildx imagetools inspect --raw "$CANDIDATE_REF"'
+            ),
+            1,
+        )
+        self.assertEqual(
+            self.promote_section.count(
+                'docker buildx imagetools inspect --raw "$STABLE_REF"'
+            ),
+            2,
         )
         self.assertIn(
             'candidate_digest=$(docker buildx imagetools inspect --raw "$CANDIDATE_REF"',
@@ -114,6 +123,13 @@ class ReleaseWorkflowTest(unittest.TestCase):
         self.assertIn("needs: [changes, package-access]", self.validate_section)
         self.assertIn("needs.package-access.result == 'success'", self.validate_section)
         self.assertIn('docker buildx build --file - --tag "$PROBE_REF" --push -', self.workflow)
+
+    def test_package_access_proves_anonymous_pull_before_expensive_builds(self):
+        package_access = self.workflow.split("\n  package-access:\n", 1)[1].split(
+            "\n  validate_pr:\n", 1
+        )[0]
+        self.assertIn("docker logout ghcr.io", package_access)
+        self.assertIn('docker pull "$PROBE_REF"', package_access)
 
     def test_candidates_and_stable_tags_are_anonymously_smoked(self):
         self.assertGreaterEqual(self.workflow.count("docker logout ghcr.io"), 2)
@@ -144,12 +160,21 @@ class ReleaseWorkflowTest(unittest.TestCase):
         self.assertIn("EXPECTED_BUILD_INPUT_DIGEST", self.workflow)
         self.assertIn("ai.labpod.image.build-input-digest", self.workflow)
 
-    def test_release_tags_are_never_overwritten(self):
+    def test_release_tags_are_never_overwritten_with_different_bytes(self):
         self.assertIn("Check release tag availability", self.validate_section)
         self.assertIn("release tag already exists; advance the vN prefix", self.validate_section)
-        self.assertIn("Refuse to overwrite immutable release tag", self.promote_section)
         self.assertIn("docker buildx imagetools inspect \"$STABLE_REF\"", self.promote_section)
-        self.assertIn("already exists; bump the release tag", self.promote_section)
+        self.assertIn("points at different bytes; bump the release tag", self.promote_section)
+
+    def test_promotion_retry_accepts_the_same_validated_bytes(self):
+        self.assertIn(
+            'if [[ "$stable_digest" == "$candidate_digest" ]]',
+            self.promote_section,
+        )
+        self.assertIn(
+            "already points at the validated candidate; promotion is complete",
+            self.promote_section,
+        )
 
     def test_weekly_rebuilds_use_unique_audit_tags(self):
         self.assertIn("REBUILD_REF", self.workflow)

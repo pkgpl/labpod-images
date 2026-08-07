@@ -27,6 +27,7 @@ import hashlib
 import json
 import os
 import re
+import subprocess
 import sys
 import urllib.request
 from pathlib import Path
@@ -135,6 +136,24 @@ def advance_release_tags(text):
     return updated, old_version, new_version
 
 
+def finalize_pin_changes(changes, image_matrix=IMAGE_MATRIX, root=ROOT):
+    """Advance immutable tags and refresh the generated bundle handoff."""
+    if not changes:
+        return
+    matrix, old_release, new_release = advance_release_tags(image_matrix.read_text())
+    image_matrix.write_text(matrix)
+    changes.append(
+        f"release tags v{old_release} -> v{new_release} "
+        f"({image_matrix.relative_to(root).as_posix()})"
+    )
+    subprocess.run(
+        [sys.executable, str(root / "scripts" / "published-metadata.py"), "--write"],
+        cwd=root,
+        check=True,
+    )
+    changes.append("regenerated published-images.json")
+
+
 def main():
     changes = []
 
@@ -202,11 +221,8 @@ def main():
                 changes.append(f"code-server {cur_cs} -> {new_cs} ({rel}, sha256 recomputed)")
 
     # A pin update changes build bytes. Advance the immutable release prefix
-    # in the same PR so merge never attempts to overwrite an existing tag.
-    if changes:
-        matrix, old_release, new_release = advance_release_tags(IMAGE_MATRIX.read_text())
-        IMAGE_MATRIX.write_text(matrix)
-        changes.append(f"release tags v{old_release} -> v{new_release} ({IMAGE_MATRIX.relative_to(ROOT).as_posix()})")
+    # and regenerate the bundle handoff in the same PR.
+    finalize_pin_changes(changes)
 
     summary = "\n".join(f"- {c}" for c in changes)
     print(summary if changes else "No pin updates available.")

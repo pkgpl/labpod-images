@@ -119,6 +119,22 @@ class ReleaseMatrixTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "duplicate"):
                 MODULE.load_variants(catalog)
 
+    def test_default_tags_follow_an_advanced_release_prefix(self):
+        with tempfile.TemporaryDirectory() as directory:
+            catalog = Path(directory) / "matrix.json"
+            source = MODULE.CATALOG.read_text().replace('"tag": "v1', '"tag": "v2')
+            catalog.write_text(source)
+            variants = MODULE.load_variants(catalog)
+            names = list(dict.fromkeys(item["name"] for item in variants))
+            for name in names:
+                with self.subTest(name=name):
+                    default_tag = MODULE.package_current_tag(name, variants)
+                    self.assertTrue(default_tag == "v2" or default_tag.startswith("v2-"))
+                    self.assertIn(
+                        (name, default_tag),
+                        {(item["name"], item["tag"]) for item in variants},
+                    )
+
 
 if __name__ == "__main__":
     unittest.main()

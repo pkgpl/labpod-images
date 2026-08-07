@@ -1,7 +1,9 @@
 import importlib.util
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 MODULE_PATH = Path(__file__).with_name("bump-image-pins.py")
@@ -67,6 +69,30 @@ class BumpImagePinsTest(unittest.TestCase):
         self.assertEqual((old_version, new_version), (1, 2))
         self.assertIn('"tag":"v2"', updated)
         self.assertIn('"tag":"v2-cu121"', updated)
+
+    def test_finalizing_pin_changes_regenerates_published_metadata(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            matrix = root / ".github" / "image-matrix.json"
+            matrix.parent.mkdir(parents=True)
+            matrix.write_text('{"variants":[{"tag":"v1"},{"tag":"v1-cu121"}]}')
+            changes = ["torch 1.0 -> 2.0"]
+            with mock.patch.object(MODULE.subprocess, "run") as run:
+                MODULE.finalize_pin_changes(
+                    changes, image_matrix=matrix, root=root
+                )
+            self.assertIn('"tag":"v2"', matrix.read_text())
+            run.assert_called_once_with(
+                [
+                    sys.executable,
+                    str(root / "scripts" / "published-metadata.py"),
+                    "--write",
+                ],
+                cwd=root,
+                check=True,
+            )
+            self.assertIn("release tags v1 -> v2 (.github/image-matrix.json)", changes)
+            self.assertIn("regenerated published-images.json", changes)
 
     def test_all_code_server_carriers_share_one_complete_pin(self):
         pins = set()

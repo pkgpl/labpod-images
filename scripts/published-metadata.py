@@ -27,7 +27,7 @@ def published_metadata():
     images = []
     for name in names:
         image_variants = [item for item in variants if item["name"] == name]
-        default_tag = MATRIX.PACKAGE_CURRENT_TAG[name]
+        default_tag = MATRIX.package_current_tag(name, variants)
         default = next(item for item in image_variants if item["tag"] == default_tag)
         context = ROOT / "images" / name
         dockerfile = context / "Dockerfile"

@@ -75,12 +75,15 @@ jobs:
       - name: Set up Buildx
         uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
 
-      - name: Verify package write access
+      - name: Verify package write and public pull access
         env:
           PROBE_REF: ${{ matrix.repository }}:access-${{ github.sha }}
         run: |
+          set -euo pipefail
           printf 'FROM scratch\nLABEL ai.labpod.image.access-probe=true\n' | \
             docker buildx build --file - --tag "$PROBE_REF" --push -
+          docker logout ghcr.io
+          docker pull "$PROBE_REF"
 
   validate_pr:
     name: validate PR (${{ matrix.name }}:${{ matrix.tag }})
@@ -248,14 +251,22 @@ jobs:
           STABLE_REF: ${{ matrix.repository }}:${{ matrix.tag }}
         run: |
           set -euo pipefail
-          # Refuse to overwrite immutable release tag: release tags are an API.
-          if docker buildx imagetools inspect "$STABLE_REF" >/dev/null 2>&1; then
-            echo "::error::$STABLE_REF already exists; bump the release tag" >&2
-            exit 1
-          fi
-          docker buildx imagetools create --tag "$STABLE_REF" "$CANDIDATE_REF"
           candidate_digest=$(docker buildx imagetools inspect --raw "$CANDIDATE_REF" | sha256sum | awk '{ print "sha256:" $1 }')
-          stable_digest=$(docker buildx imagetools inspect --raw "$STABLE_REF" | sha256sum | awk '{ print "sha256:" $1 }')
+
+          # A failed matrix run can leave some tags promoted. Retrying the same
+          # validated bytes is safe; a different manifest remains immutable.
+          if docker buildx imagetools inspect "$STABLE_REF" >/dev/null 2>&1; then
+            stable_digest=$(docker buildx imagetools inspect --raw "$STABLE_REF" | sha256sum | awk '{ print "sha256:" $1 }')
+            if [[ "$stable_digest" == "$candidate_digest" ]]; then
+              echo "$STABLE_REF already points at the validated candidate; promotion is complete"
+            else
+              echo "::error::$STABLE_REF points at different bytes; bump the release tag" >&2
+              exit 1
+            fi
+          else
+            docker buildx imagetools create --tag "$STABLE_REF" "$CANDIDATE_REF"
+            stable_digest=$(docker buildx imagetools inspect --raw "$STABLE_REF" | sha256sum | awk '{ print "sha256:" $1 }')
+          fi
           [[ -n "$candidate_digest" && "$stable_digest" == "$candidate_digest" ]]
 
       - name: Verify stable tag through anonymous pull
