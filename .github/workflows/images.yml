@@ -2,6 +2,12 @@ name: images
 
 on:
   workflow_dispatch:
+    inputs:
+      promote_stable:
+        description: Rebuild the full catalog and promote stable tags after validation
+        required: true
+        type: boolean
+        default: false
   pull_request:
   push:
     branches: [main]
@@ -170,9 +176,10 @@ jobs:
           SOURCE_SHA: ${{ github.sha }}
           RUN_ID: ${{ github.run_id }}
           RUN_ATTEMPT: ${{ github.run_attempt }}
+          PROMOTE_STABLE: ${{ inputs.promote_stable }}
         run: |
           set -euo pipefail
-          if [[ "$EVENT_NAME" == schedule || "$EVENT_NAME" == workflow_dispatch ]]; then
+          if [[ "$EVENT_NAME" == schedule || ( "$EVENT_NAME" == workflow_dispatch && "$PROMOTE_STABLE" != true ) ]]; then
             REBUILD_DATE=$(date -u +%Y%m%d)
             REBUILD_REF="${REPOSITORY}:rebuild-${REBUILD_DATE}-${RUN_ID}-${RUN_ATTEMPT}-${RELEASE_TAG}"
             echo "candidate_ref=$REBUILD_REF" >> "$GITHUB_OUTPUT"
@@ -224,7 +231,10 @@ jobs:
   promote:
     name: promote (${{ matrix.name }}:${{ matrix.tag }})
     needs: [changes, validate_release]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.validate_release.result == 'success'
+    if: >-
+      github.ref == 'refs/heads/main' && needs.validate_release.result == 'success' &&
+      (github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' && inputs.promote_stable))
     runs-on: ubuntu-22.04
     permissions:
       contents: read
@@ -292,7 +302,10 @@ jobs:
       PROMOTE_RESULT: ${{ needs.promote.result }}
       IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
       SHOULD_BUILD_REMOTE: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
-      SHOULD_PROMOTE: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
+      SHOULD_PROMOTE: >-
+        ${{ github.ref == 'refs/heads/main' &&
+        (github.event_name == 'push' ||
+        (github.event_name == 'workflow_dispatch' && inputs.promote_stable)) }}
     steps:
       - name: Require the complete release result
         run: |

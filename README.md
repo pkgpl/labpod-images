@@ -68,6 +68,10 @@ matrix to catch base-image and floating-dependency drift.
 Promotion is retry-safe after a partial matrix failure: an existing stable tag
 is accepted only when it already resolves to the exact validated candidate
 manifest. CI still refuses to move a stable tag that points at different bytes.
+Ordinary manual dispatch remains an audit rebuild and never moves stable tags.
+If validation fails before any promotion can start, maintainers can rerun the
+workflow with **Promote stable** enabled after merging the fix; that explicit
+recovery mode rebuilds, validates, and promotes the complete catalog.
 
 The release workflow stamps `org.opencontainers.image.source` on every image so
 GHCR can associate every organization-scoped package with this repository.
