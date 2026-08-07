@@ -189,6 +189,15 @@ class ReleaseWorkflowTest(unittest.TestCase):
                 self.assertTrue((ROOT / "images" / name / "Dockerfile").is_file())
                 self.assertIn(name, smoke)
 
+    def test_runtime_smoke_uses_an_unprivileged_workspace_identity(self):
+        smoke = (ROOT / "scripts" / "smoke-image.sh").read_text()
+        self.assertIn("runtime_uid=${SMOKE_UID:-65534}", smoke)
+        self.assertIn("runtime_gid=${SMOKE_GID:-65534}", smoke)
+        self.assertIn('--user "$runtime_uid:$runtime_gid"', smoke)
+        self.assertIn('-e USER=nobody -e HOME=/tmp', smoke)
+        self.assertIn('--tmpfs /work:rw,mode=1777', smoke)
+        self.assertIn('test -w "$HOME" && test -w /work', smoke)
+
     def test_parallel_dev_uses_redistributable_code_server(self):
         dockerfile = (ROOT / "images" / "parallel-dev" / "Dockerfile").read_text()
         self.assertIn("code-server", dockerfile)

@@ -57,7 +57,8 @@ contract validate the complete matrix.
 
 Changes on `main` first publish commit-specific `candidate-<sha>-<tag>` tags for
 the affected variants. CI then pulls those candidates anonymously, checks the
-runtime image contract, exercises the installed Python stack, and probes the
+runtime image contract as an unprivileged workspace identity with writable
+`HOME` and `/work`, exercises the installed Python stack, and probes the
 JupyterLab, TensorBoard, code-server, and ttyd HTTP launchers that apply to that
 image. Stable tags are promoted only after the complete affected candidate
 matrix passes. CI pulls and smokes every promoted stable tag again without

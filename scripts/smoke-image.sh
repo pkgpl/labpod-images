@@ -10,6 +10,8 @@ usage() {
 image_ref=$1
 image_kind=$2
 engine=${CONTAINER_ENGINE:-docker}
+runtime_uid=${SMOKE_UID:-65534}
+runtime_gid=${SMOKE_GID:-65534}
 
 case "$image_kind" in
   code-server|pytorch-jupyter|tensorflow-jupyter|scipy-jupyter|pytorch-demo|\
@@ -49,13 +51,28 @@ if [[ -n "${EXPECTED_BUILD_INPUT_DIGEST:-}" ]]; then
     || fail "build-input digest label does not match workflow input"
 fi
 
-container_id=$("$engine" run -d "$image_ref")
+# LabPod supplies a passwd entry and persistent HOME for its unprivileged
+# workspace identity. The standard nobody identity exercises the same privilege
+# boundary in Docker/Podman smoke runs; /tmp is its writable stand-in for HOME
+# and the tmpfs matches LabPod's writable /work bind mount.
+container_id=$("$engine" run -d \
+  --user "$runtime_uid:$runtime_gid" \
+  -e USER=nobody -e HOME=/tmp \
+  --tmpfs /work:rw,mode=1777 \
+  "$image_ref")
 for _ in $(seq 1 10); do
   [[ $("$engine" inspect --format '{{.State.Running}}' "$container_id") == true ]] && break
   sleep 1
 done
 [[ $("$engine" inspect --format '{{.State.Running}}' "$container_id") == true ]] \
   || fail "default container process did not stay running"
+[[ $("$engine" exec "$container_id" id -u) == "$runtime_uid" ]] \
+  || fail "container is not running as the smoke workspace uid"
+[[ $("$engine" exec "$container_id" id -g) == "$runtime_gid" ]] \
+  || fail "container is not running as the smoke workspace gid"
+# shellcheck disable=SC2016 # HOME must expand inside the container.
+"$engine" exec "$container_id" sh -c 'test -w "$HOME" && test -w /work' \
+  || fail "workspace identity cannot write HOME and /work"
 
 probe_http() {
   local name=$1
