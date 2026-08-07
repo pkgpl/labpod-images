@@ -81,7 +81,7 @@ jobs:
         run: |
           set -euo pipefail
           printf 'FROM scratch\nLABEL ai.labpod.image.access-probe=true\n' | \
-            docker buildx build --file - --tag "$PROBE_REF" --push -
+            docker buildx build --file - --tag "$PROBE_REF" --push .
           docker logout ghcr.io
           docker pull "$PROBE_REF"
 
