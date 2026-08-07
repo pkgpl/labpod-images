@@ -50,23 +50,42 @@ def logical_lines(text):
 
 
 def expand(value, variables):
-    def replacement(match):
-        name = match.group(1) or match.group(2)
-        if name not in variables:
-            raise ValueError(f"unresolved build argument in FROM: {name}")
-        return variables[name]
+    current = value
+    for _ in range(len(variables) + 1):
+        missing = []
 
-    return VARIABLE.sub(replacement, value)
+        def replacement(match):
+            name = match.group(1) or match.group(2)
+            resolved = variables.get(name, "")
+            if not resolved:
+                missing.append(name)
+                return match.group(0)
+            return resolved
+
+        following = VARIABLE.sub(replacement, current)
+        if missing:
+            raise ValueError(f"unresolved build argument in FROM: {missing[0]}")
+        if following == current:
+            match = VARIABLE.search(following)
+            if match:
+                raise ValueError(
+                    f"cyclic build argument in FROM: {match.group(1) or match.group(2)}"
+                )
+            return following
+        current = following
+    raise ValueError("cyclic build argument expansion in FROM")
 
 
 def normalize_image_ref(value):
     value = value.strip()
     if not value or any(character.isspace() for character in value):
         raise ValueError(f"invalid base image reference: {value!r}")
+    if value.lower() == "scratch":
+        return "scratch"
     name, suffix = value, ""
     if "@" in value:
         name, digest = value.rsplit("@", 1)
-        suffix = "@" + digest.lower()
+        suffix = "@" + digest
     else:
         slash = value.rfind("/")
         colon = value.rfind(":")
@@ -78,7 +97,7 @@ def normalize_image_ref(value):
     first = name.split("/", 1)[0]
     if "." not in first and ":" not in first and first != "localhost":
         name = "docker.io/" + (name if "/" in name else "library/" + name)
-    return name.lower() + suffix
+    return name + suffix
 
 
 def base_images(dockerfile, build_args):
@@ -96,7 +115,7 @@ def base_images(dockerfile, build_args):
             if name in build_args:
                 variables[name] = build_args[name]
             elif separator:
-                variables[name] = expand(default.strip(), variables)
+                variables[name] = default.strip()
             continue
         if instruction != "FROM":
             continue

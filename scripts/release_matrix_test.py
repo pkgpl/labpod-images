@@ -85,6 +85,26 @@ class ReleaseMatrixTest(unittest.TestCase):
                 scope = MODULE.release_scope([path])
                 self.assertEqual(len(self.names_and_tags(scope)), 26)
 
+    def test_catalog_not_its_generators_decides_a_release(self):
+        # A generator change that moves no digest publishes nothing new, so
+        # requiring a release only collides with the immutable-tag guard for tags
+        # that already exist. When such a change does move a digest,
+        # published_metadata_test forces the catalog to be regenerated in the
+        # same commit, and the catalog is what selects the release.
+        for generator in (
+            "scripts/build-input-digest.py",
+            "scripts/published-metadata.py",
+            "scripts/release-matrix.py",
+        ):
+            with self.subTest(path=generator):
+                scope = MODULE.release_scope([generator])
+                self.assertEqual(scope["release_required"], "false")
+                self.assertEqual(self.names_and_tags(scope), [])
+
+        scope = MODULE.release_scope(["published-images.json"])
+        self.assertEqual(scope["release_required"], "true")
+        self.assertEqual(len(self.names_and_tags(scope)), 26)
+
     def test_release_tags_are_immutable_and_channels_are_explicit(self):
         scope = MODULE.release_scope(force_all=True)
         tags = self.names_and_tags(scope)

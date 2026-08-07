@@ -9,12 +9,22 @@ from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parent.parent
 CATALOG = ROOT / ".github" / "image-matrix.json"
+# Only inputs that can change what gets published belong here: the two catalogs
+# that declare it, plus the workflow and smoke script that decide how an image is
+# built and validated.
+#
+# The generators behind the catalog, and this selector itself, do not.
+# published_metadata_test asserts published-images.json matches what the
+# generators emit, so a change to build-input-digest.py or published-metadata.py
+# that moves any digest has to regenerate the catalog in the same commit, and the
+# regenerated catalog is what selects the release. A change that moves no digest
+# publishes nothing new -- listing the generators here demanded a release anyway,
+# for tags that already exist, which the immutable-tag guard then refused, so no
+# such change could ever merge.
 FULL_MATRIX_PATHS = {
     ".github/image-matrix.json",
     ".github/workflows/images.yml",
-    "scripts/build-input-digest.py",
-    "scripts/published-metadata.py",
-    "scripts/release-matrix.py",
+    "published-images.json",
     "scripts/smoke-image.sh",
 }
 PACKAGE_DEFAULT_SUFFIX = {
